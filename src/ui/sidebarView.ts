@@ -1,3 +1,5 @@
+sidebarview 
+
 // ============================================================
 // src/ui/sidebarView.ts
 // WebviewView provider — context menu + drag-and-drop reordering.
