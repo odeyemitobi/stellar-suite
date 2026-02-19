@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+<<<<<<< HEAD
+import { ContractInfo, DeploymentRecord } from './sidebarView';
+=======
 import { ContractInfo, DeploymentInfo } from './sidebarView';
 import { GroupHierarchy } from '../services/contractGroupService';
 
@@ -7,6 +10,7 @@ export interface SidebarContent {
     deployments: DeploymentInfo[];
     groups?: GroupHierarchy[];
 }
+>>>>>>> ec49c33444a89acc1dfb0e54c6da989d01b44871
 
 export class SidebarWebView {
     private webview: vscode.Webview;
@@ -15,6 +19,15 @@ export class SidebarWebView {
         this.webview = webview;
     }
 
+<<<<<<< HEAD
+    public updateContent(contracts: ContractInfo[], deployments: DeploymentRecord[]) {
+        const html = this.getHtml(contracts, deployments);
+        this.webview.html = html;
+    }
+
+    private getHtml(contracts: ContractInfo[], deployments: DeploymentRecord[]): string {
+        const contractsHtml = this.renderContracts(contracts);
+=======
     public updateContent(contracts: ContractInfo[], deployments: DeploymentInfo[], groups?: GroupHierarchy[]) {
         const html = this.getHtml(contracts, deployments, groups);
         this.webview.html = html;
@@ -22,6 +35,7 @@ export class SidebarWebView {
 
     private getHtml(contracts: ContractInfo[], deployments: DeploymentInfo[], groups?: GroupHierarchy[]): string {
         const contractsHtml = groups ? this.renderGroupsWithContracts(groups, contracts) : this.renderContracts(contracts);
+>>>>>>> ec49c33444a89acc1dfb0e54c6da989d01b44871
         const deploymentsHtml = this.renderDeployments(deployments);
 
         return `<!DOCTYPE html>
@@ -348,6 +362,59 @@ export class SidebarWebView {
             return '<div class="empty-state">No contracts detected in workspace</div>';
         }
 
+<<<<<<< HEAD
+        return contracts.map(contract => {
+            const statusClass = contract.contractId ? 'status-deployed' : 'status-not-deployed';
+            const statusText = contract.contractId ? 'Deployed' : 'Not Deployed';
+
+            // hasWasm mirrors isBuilt — fall back to isBuilt if hasWasm not populated
+            const isBuilt = contract.hasWasm ?? contract.isBuilt;
+            const buildStatus = isBuilt ? 'Built' : 'Not Built';
+            const buildStatusClass = isBuilt ? 'status-deployed' : 'status-not-deployed';
+
+            const functionsHtml = contract.functions && contract.functions.length > 0
+                ? `<div class="functions-list">
+                    ${contract.functions.map(fn => `
+                        <div class="function-item">
+                            <span class="function-name">${this.escapeHtml(fn.name)}</span>
+                            ${fn.parameters.length > 0
+                                ? `(${fn.parameters.map(p => this.escapeHtml(p.name)).join(', ')})`
+                                : '()'}
+                        </div>
+                    `).join('')}
+                   </div>`
+                : '';
+
+            const deployedAt = contract.lastDeployed ?? contract.deployedAt;
+
+            return `
+                <div class="contract-item">
+                    <div class="contract-name">
+                        ${this.escapeHtml(contract.name)}
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                        <span class="status-badge ${buildStatusClass}">${buildStatus}</span>
+                    </div>
+                    <div class="contract-path">${this.escapeHtml(contract.path)}</div>
+                    ${contract.contractId
+                        ? `<div class="contract-id">ID: ${this.escapeHtml(contract.contractId)}</div>`
+                        : ''}
+                    ${deployedAt
+                        ? `<div class="timestamp">Deployed: ${new Date(deployedAt).toLocaleString()}</div>`
+                        : ''}
+                    ${functionsHtml}
+                    <div class="contract-actions">
+                        <button class="btn" onclick="build('${this.escapeHtml(contract.path)}')">Build</button>
+                        ${isBuilt
+                            ? `<button class="btn" onclick="deploy('${this.escapeHtml(contract.path)}')">Deploy</button>`
+                            : ''}
+                        ${contract.contractId
+                            ? `<button class="btn btn-secondary" onclick="simulate('${this.escapeHtml(contract.contractId)}')">Simulate</button>`
+                            : ''}
+                        ${contract.contractId
+                            ? `<button class="btn btn-secondary" onclick="inspectContract('${this.escapeHtml(contract.contractId)}')">Inspect</button>`
+                            : ''}
+                    </div>
+=======
         return contracts.map(contract => this.createContractElement(contract)).join('');
     }
 
@@ -390,6 +457,7 @@ export class SidebarWebView {
                     <span>${this.escapeHtml(group.name)}</span>
                     <span class="group-stats">(${group.contractIds.length + (group.children || []).reduce((sum, c) => sum + c.contractIds.length, 0)})</span>
                     ${actions}
+>>>>>>> ec49c33444a89acc1dfb0e54c6da989d01b44871
                 </div>
                 ${groupContent}
             </div>
@@ -433,17 +501,16 @@ export class SidebarWebView {
         `;
     }
 
-    private renderDeployments(deployments: DeploymentInfo[]): string {
+    private renderDeployments(deployments: DeploymentRecord[]): string {
         if (deployments.length === 0) {
             return '<div class="empty-state">No deployments yet</div>';
         }
 
         return deployments.map(deployment => {
-            const date = new Date(deployment.timestamp);
+            const date = new Date(deployment.deployedAt);
             return `
                 <div class="deployment-item">
                     <div class="contract-id">Contract ID: ${this.escapeHtml(deployment.contractId)}</div>
-                    ${deployment.transactionHash ? `<div class="contract-path">Tx: ${this.escapeHtml(deployment.transactionHash)}</div>` : ''}
                     <div class="timestamp">${date.toLocaleString()}</div>
                     <div class="timestamp">Network: ${this.escapeHtml(deployment.network)} | Source: ${this.escapeHtml(deployment.source)}</div>
                 </div>
