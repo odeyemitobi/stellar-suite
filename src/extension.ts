@@ -62,6 +62,11 @@ export function activate(context: vscode.ExtensionContext) {
             () => buildContract(context, sidebarProvider)
         );
 
+        const configureCliCommand = vscode.commands.registerCommand(
+            'stellarSuite.configureCli',
+            () => manageCliConfiguration(context)
+        );
+
         const refreshCommand = vscode.commands.registerCommand(
             'stellarSuite.refreshContracts',
             () => {
@@ -150,6 +155,7 @@ export function activate(context: vscode.ExtensionContext) {
             simulateCommand,
             deployCommand,
             buildCommand,
+            configureCliCommand,
             refreshCommand,
             deployFromSidebarCommand,
             simulateFromSidebarCommand,
