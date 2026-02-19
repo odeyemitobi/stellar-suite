@@ -11,10 +11,12 @@ import { registerGroupCommands } from './commands/groupCommands';
 import { SidebarViewProvider } from './ui/sidebarView';
 import { ContractGroupService } from './services/contractGroupService';
 import { ContractVersionTracker } from './services/contractVersionTracker';
+import { ContractMetadataService } from './services/contractMetadataService';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 let groupService: ContractGroupService | undefined;
 let versionTracker: ContractVersionTracker | undefined;
+let metadataService: ContractMetadataService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Stellar Suite');
@@ -35,6 +37,21 @@ export function activate(context: vscode.ExtensionContext) {
         // Initialize version tracker
         versionTracker = new ContractVersionTracker(context, outputChannel);
         outputChannel.appendLine('[Extension] Contract version tracker initialized');
+
+        // Initialize contract metadata service
+        metadataService = new ContractMetadataService(vscode.workspace as any, outputChannel);
+        metadataService.startWatching();
+        outputChannel.appendLine('[Extension] Contract metadata service initialized');
+
+        // Trigger an initial background workspace scan so the cache is warm
+        metadataService.scanWorkspace().then(result => {
+            outputChannel.appendLine(
+                `[Extension] Metadata scan: ${result.contracts.length} Cargo.toml(s) found` +
+                (result.errors.length ? `, ${result.errors.length} error(s)` : '')
+            );
+        }).catch(err => {
+            outputChannel.appendLine(`[Extension] Metadata scan error: ${err instanceof Error ? err.message : String(err)}`);
+        });
 
         // ── Sidebar ───────────────────────────────────────────
         sidebarProvider = new SidebarViewProvider(context.extensionUri, context);
@@ -155,7 +172,8 @@ export function activate(context: vscode.ExtensionContext) {
             simulateFromSidebarCommand,
             copyContractIdCommand,
             showVersionMismatchesCommand,
-            watcher
+            watcher,
+            { dispose: () => metadataService?.dispose() }
         );
 
         outputChannel.appendLine('[Extension] Extension activation complete');
