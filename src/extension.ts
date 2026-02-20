@@ -11,19 +11,21 @@ import { registerGroupCommands } from './commands/groupCommands';
 import { SidebarViewProvider } from './ui/sidebarView';
 import { ContractGroupService } from './services/contractGroupService';
 import { ContractVersionTracker } from './services/contractVersionTracker';
+import { manageCliConfiguration } from './commands/manageCliConfiguration';
+import { registerSyncCommands } from './commands/syncCommands';
+import { WorkspaceStateSyncService } from './services/workspaceStateSyncService';
+import { SyncStatusProvider } from './ui/syncStatusProvider';
+import { RpcRetryService } from './services/rpcRetryService';
+import { registerRetryCommands } from './commands/retryCommands';
+import { RetryStatusBarItem } from './ui/retryStatusBar';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 let groupService: ContractGroupService | undefined;
 let versionTracker: ContractVersionTracker | undefined;
-import { manageCliConfiguration } from './commands/manageCliConfiguration';
-import { registerSyncCommands } from './commands/syncCommands';
-import { SidebarViewProvider } from './ui/sidebarView';
-import { WorkspaceStateSyncService } from './services/workspaceStateSyncService';
-import { SyncStatusProvider } from './ui/syncStatusProvider';
-
-let sidebarProvider: SidebarViewProvider | undefined;
 let syncService: WorkspaceStateSyncService | undefined;
 let syncStatusProvider: SyncStatusProvider | undefined;
+let retryService: RpcRetryService | undefined;
+let retryStatusBar: RetryStatusBarItem | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Stellar Suite');
@@ -44,6 +46,17 @@ export function activate(context: vscode.ExtensionContext) {
         // Initialize version tracker
         versionTracker = new ContractVersionTracker(context, outputChannel);
         outputChannel.appendLine('[Extension] Contract version tracker initialized');
+
+        // Initialize RPC retry service with circuit breaker
+        retryService = new RpcRetryService(
+            { resetTimeout: 60000, consecutiveFailuresThreshold: 3 },
+            { maxAttempts: 3, initialDelayMs: 100, maxDelayMs: 5000 },
+            false
+        );
+        retryStatusBar = new RetryStatusBarItem(retryService, 5000);
+        registerRetryCommands(context, retryService);
+        outputChannel.appendLine('[Extension] RPC retry service with circuit breaker initialized');
+
         // Initialize workspace state synchronization
         syncService = new WorkspaceStateSyncService(context);
         syncStatusProvider = new SyncStatusProvider(syncService);
@@ -158,9 +171,10 @@ export function activate(context: vscode.ExtensionContext) {
             simulateFromSidebarCommand,
             copyContractIdCommand,
             showVersionMismatchesCommand,
-            watcher
             watcher,
-            syncStatusProvider || { dispose: () => {} }
+            syncStatusProvider || { dispose: () => {} },
+            retryStatusBar || { dispose: () => {} },
+            retryService
         );
 
         outputChannel.appendLine('[Extension] Extension activation complete');
@@ -179,4 +193,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     syncStatusProvider?.dispose();
+    retryStatusBar?.dispose();
+    retryService?.dispose();
 }
