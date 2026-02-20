@@ -16,6 +16,12 @@ import { manageCliConfiguration } from "./commands/manageCliConfiguration";
 import { registerSyncCommands } from "./commands/syncCommands";
 import { WorkspaceStateSyncService } from "./services/workspaceStateSyncService";
 import { SyncStatusProvider } from "./ui/syncStatusProvider";
+import { WorkspaceStateEncryptionService } from "./services/workspaceStateEncryptionService";
+import { RpcHealthMonitor } from "./services/rpcHealthMonitor";
+import { RpcHealthStatusBar } from "./ui/rpcHealthStatusBar";
+import { registerHealthCommands } from "./commands/healthCommands";
+import { SimulationHistoryService } from "./services/simulationHistoryService";
+import { registerSimulationHistoryCommands } from "./commands/simulationHistoryCommands";
 import { CompilationStatusMonitor } from "./services/compilationStatusMonitor";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
 
@@ -25,6 +31,10 @@ let versionTracker: ContractVersionTracker | undefined;
 let metadataService: ContractMetadataService | undefined;
 let syncService: WorkspaceStateSyncService | undefined;
 let syncStatusProvider: SyncStatusProvider | undefined;
+let encryptionService: WorkspaceStateEncryptionService | undefined;
+let healthMonitor: RpcHealthMonitor | undefined;
+let healthStatusBar: RpcHealthStatusBar | undefined;
+let simulationHistoryService: SimulationHistoryService | undefined;
 let compilationMonitor: CompilationStatusMonitor | undefined;
 let compilationStatusProvider: CompilationStatusProvider | undefined;
 
@@ -34,6 +44,12 @@ export function activate(context: vscode.ExtensionContext) {
   console.log("[Stellar Suite] Extension activating...");
 
   try {
+    // Initialize simulation history service
+    simulationHistoryService = new SimulationHistoryService(context, outputChannel);
+    outputChannel.appendLine(
+      '[Extension] Simulation history service initialized',
+    );
+
     // Initialize contract group service
     groupService = new ContractGroupService(context);
     groupService.loadGroups().then(() => {
@@ -103,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
     // ── Core commands ─────────────────────────────────────
     const simulateCommand = vscode.commands.registerCommand(
       "stellarSuite.simulateTransaction",
-      () => simulateTransaction(context, sidebarProvider),
+      () => simulateTransaction(context, sidebarProvider, simulationHistoryService),
     );
 
     const deployCommand = vscode.commands.registerCommand(
@@ -131,77 +147,6 @@ export function activate(context: vscode.ExtensionContext) {
             "[Extension] WARNING: sidebarProvider not available",
           );
         }
-
-    // Register health monitoring commands
-    if (healthMonitor) {
-        registerHealthCommands(context, healthMonitor);
-        outputChannel.appendLine('[Extension] RPC health commands registered');
-    }
-
-    outputChannel.appendLine('[Extension] All commands registered');
-    console.log('[Stellar Suite] All commands registered');
-        outputChannel.appendLine('[Extension] All commands registered');
-
-        // ── File watcher ──────────────────────────────────────
-        const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
-        const refreshOnChange = () => sidebarProvider?.refresh();
-        watcher.onDidChange(refreshOnChange);
-        watcher.onDidCreate(refreshOnChange);
-        watcher.onDidDelete(refreshOnChange);
-
-        context.subscriptions.push(
-            simulateCommand,
-            deployCommand,
-            buildCommand,
-            configureCliCommand,
-            refreshCommand,
-            deployFromSidebarCommand,
-            simulateFromSidebarCommand,
-            copyContractIdCommand,
-            showVersionMismatchesCommand,
-            watcher,
-            syncStatusProvider || { dispose: () => {} },
-            encryptionService
-        );
-
-        outputChannel.appendLine('[Extension] Extension activation complete');
-
-    const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
-    watcher.onDidChange(() => {
-        if (sidebarProvider) {
-            sidebarProvider.refresh();
-        }
-    });
-    watcher.onDidCreate(() => {
-        if (sidebarProvider) {
-            sidebarProvider.refresh();
-        }
-    });
-    watcher.onDidDelete(() => {
-        if (sidebarProvider) {
-            sidebarProvider.refresh();
-        }
-    });
-
-    context.subscriptions.push(
-        simulateCommand,
-        deployCommand,
-        refreshCommand,
-        deployFromSidebarCommand,
-        simulateFromSidebarCommand,
-        buildCommand,
-        watcher,
-        healthStatusBar || { dispose: () => {} },
-        healthMonitor || { dispose: () => {} }
-    );
-
-    outputChannel.appendLine('[Extension] Extension activation complete');
-    console.log('[Stellar Suite] Extension activation complete');
-    } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        outputChannel.appendLine(`[Extension] ERROR during activation: ${errorMsg}`);
-        if (error instanceof Error && error.stack) {
-            outputChannel.appendLine(`[Extension] Stack: ${error.stack}`);
       },
     );
 
@@ -212,7 +157,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     const simulateFromSidebarCommand = vscode.commands.registerCommand(
       "stellarSuite.simulateFromSidebar",
-      () => simulateTransaction(context, sidebarProvider),
+      () => simulateTransaction(context, sidebarProvider, simulationHistoryService),
     );
 
     // ── Context menu commands (callable from Command Palette) ──
@@ -275,6 +220,14 @@ export function activate(context: vscode.ExtensionContext) {
       );
     }
 
+    // Register simulation history commands
+    if (simulationHistoryService) {
+      registerSimulationHistoryCommands(context, simulationHistoryService);
+      outputChannel.appendLine(
+        "[Extension] Simulation history commands registered",
+      );
+    }
+
     outputChannel.appendLine("[Extension] All commands registered");
 
     // ── File watcher ──────────────────────────────────────
@@ -322,6 +275,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  healthMonitor?.dispose();
+  healthStatusBar?.dispose();
   syncStatusProvider?.dispose();
   compilationStatusProvider?.dispose();
   compilationMonitor?.dispose();
