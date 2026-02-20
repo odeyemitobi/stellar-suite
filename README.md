@@ -288,6 +288,7 @@ Stellar Suite is being developed in stages.
 
 - Run contract simulations before invoking transactions
 - Display execution results in a readable interface
+- Show storage state diff (created/modified/deleted entries)
 - Show authorization requirements
 - Display resource usage metrics
 

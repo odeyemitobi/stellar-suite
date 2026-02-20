@@ -1,23 +1,24 @@
 import * as vscode from 'vscode';
-import { SorobanCliService } from '../services/sorobanCliService';
+import { SorobanCliService, SimulationResult } from '../services/sorobanCliService';
 import { RpcService } from '../services/rpcService';
 import { ContractInspector, ContractFunction } from '../services/contractInspector';
 import { WorkspaceDetector } from '../utils/workspaceDetector';
 import { SimulationPanel } from '../ui/simulationPanel';
 import { SidebarViewProvider } from '../ui/sidebarView';
-import { parseFunctionArgs } from '../utils/jsonParser';
 import { formatError } from '../utils/errorFormatter';
 import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
 import { SimulationValidationService } from '../services/simulationValidationService';
+import { SimulationHistoryService } from '../services/simulationHistoryService';
+import { ResourceProfilingService } from '../services/resourceProfilingService';
+import { StateCaptureService } from '../services/stateCaptureService';
+import { StateDiffService } from '../services/stateDiffService';
 
 export async function simulateTransaction(
     context: vscode.ExtensionContext,
-    sidebarProvider?: SidebarViewProvider
-) {
-import { SimulationHistoryService } from '../services/simulationHistoryService';
-import { ResourceProfilingService } from '../services/resourceProfilingService';
-
-export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider, historyService?: SimulationHistoryService, profilingService?: ResourceProfilingService) {
+    sidebarProvider?: SidebarViewProvider,
+    historyService?: SimulationHistoryService,
+    profilingService?: ResourceProfilingService
+): Promise<void> {
     try {
         const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
         if (!resolvedCliConfig.validation.valid) {
@@ -186,7 +187,11 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             async progress => {
                 progress.report({ increment: 0, message: 'Initializing...' });
 
-                let result;
+                const stateCaptureService = new StateCaptureService();
+                const stateDiffService = new StateDiffService();
+                const baselineBeforeState = stateCaptureService.captureBeforeState(undefined);
+
+                let result: SimulationResult;
                 const simulationStartTime = Date.now();
                 let simulationMethod: 'cli' | 'rpc' = useLocalCli ? 'cli' : 'rpc';
 
@@ -204,7 +209,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                             args,
                             network
                         );
-                    } catch (cliError) {
+                    } catch {
                         const foundPath = await SorobanCliService.findCliPath();
                         const suggestion = foundPath
                             ? `\n\nFound Stellar CLI at: ${foundPath}\nUpdate your stellarSuite.cliPath setting to: "${foundPath}"`
@@ -230,12 +235,29 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                 const durationMs = Date.now() - simulationStartTime;
                 progress.report({ increment: 100, message: 'Complete' });
 
-                panel.updateResults(
-                    { ...result, validationWarnings },
-                    contractId,
-                    functionName,
-                    args
-                );
+                let stateSnapshotBefore = baselineBeforeState;
+                let stateSnapshotAfter = stateCaptureService.captureAfterState(undefined);
+                let stateDiff = stateDiffService.calculateDiff(stateSnapshotBefore, stateSnapshotAfter);
+
+                try {
+                    const captured = stateCaptureService.captureSnapshots(result.rawResult ?? result.result);
+                    stateSnapshotBefore = captured.before.entries.length > 0
+                        ? captured.before
+                        : baselineBeforeState;
+                    stateSnapshotAfter = captured.after;
+                    stateDiff = stateDiffService.calculateDiff(stateSnapshotBefore, stateSnapshotAfter);
+                } catch (stateError) {
+                    console.warn('[Stellar Suite] Failed to capture state diff:', stateError);
+                }
+
+                const enrichedResult: SimulationResult = {
+                    ...result,
+                    validationWarnings,
+                    stateSnapshotBefore,
+                    stateSnapshotAfter,
+                    stateDiff,
+                };
+
                 // Record simulation in history
                 let historyEntryId: string | undefined;
                 if (historyService) {
@@ -244,15 +266,18 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                             contractId,
                             functionName,
                             args,
-                            outcome: result.success ? 'success' : 'failure',
-                            result: result.result,
-                            error: result.error,
-                            errorType: result.errorType,
-                            resourceUsage: result.resourceUsage,
+                            outcome: enrichedResult.success ? 'success' : 'failure',
+                            result: enrichedResult.result,
+                            error: enrichedResult.error,
+                            errorType: enrichedResult.errorType,
+                            resourceUsage: enrichedResult.resourceUsage,
                             network,
                             source,
                             method: simulationMethod,
                             durationMs,
+                            stateSnapshotBefore,
+                            stateSnapshotAfter,
+                            stateDiff,
                         });
                         historyEntryId = entry.id;
                     } catch (historyError) {
@@ -262,15 +287,15 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                 }
 
                 // Record resource profile
-                if (profilingService && result.success) {
+                if (profilingService && enrichedResult.success) {
                     try {
                         await profilingService.recordProfile({
                             simulationId: historyEntryId,
                             contractId,
                             functionName,
                             network,
-                            cpuInstructions: result.resourceUsage?.cpuInstructions,
-                            memoryBytes: result.resourceUsage?.memoryBytes,
+                            cpuInstructions: enrichedResult.resourceUsage?.cpuInstructions,
+                            memoryBytes: enrichedResult.resourceUsage?.memoryBytes,
                             executionTimeMs: durationMs,
                         });
                     } catch (profilingError) {
@@ -278,21 +303,27 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     }
                 }
 
-                // Update panel with results
-                panel.updateResults(result, contractId, functionName, args);
+                // Update panel with final results
+                panel.updateResults(enrichedResult, contractId, functionName, args);
 
                 if (sidebarProvider) {
-                    sidebarProvider.showSimulationResult(contractId, result);
+                    sidebarProvider.showSimulationResult(contractId, enrichedResult);
                 }
 
-                if (result.success) {
-                    vscode.window.showInformationMessage(
-                        'Simulation completed successfully'
-                    );
+                if (enrichedResult.success) {
+                    if (stateDiff.summary.totalChanges > 0) {
+                        vscode.window.showInformationMessage(
+                            `Simulation completed successfully (${stateDiff.summary.totalChanges} state change${stateDiff.summary.totalChanges === 1 ? '' : 's'} detected)`
+                        );
+                    } else {
+                        vscode.window.showInformationMessage(
+                            'Simulation completed successfully'
+                        );
+                    }
                 } else {
-                    const notificationMessage = result.errorSummary
-                        ? `Simulation failed: ${result.errorSummary}`
-                        : `Simulation failed: ${result.error}`;
+                    const notificationMessage = enrichedResult.errorSummary
+                        ? `Simulation failed: ${enrichedResult.errorSummary}`
+                        : `Simulation failed: ${enrichedResult.error}`;
                     vscode.window.showErrorMessage(notificationMessage);
                 }
             }

@@ -1,5 +1,6 @@
 import { execFile, exec } from 'child_process';
 import { promisify } from 'util';
+import { StateDiff, StateSnapshot } from '../types/simulationState';
 import {
     CliErrorContext,
     CliErrorType,
@@ -49,6 +50,11 @@ export interface SimulationResult {
         cpuInstructions?: number;
         memoryBytes?: number;
     };
+    validationWarnings?: string[];
+    rawResult?: unknown;
+    stateSnapshotBefore?: StateSnapshot;
+    stateSnapshotAfter?: StateSnapshot;
+    stateDiff?: StateDiff;
 }
 
 export class SorobanCliService {
@@ -142,6 +148,7 @@ export class SorobanCliService {
                     return {
                         success: true,
                         result: parsed.result || parsed.returnValue || parsed,
+                        rawResult: parsed,
                         resourceUsage: parsed.resource_usage || parsed.resourceUsage || parsed.cpu_instructions ? {
                             cpuInstructions: parsed.cpu_instructions,
                             memoryBytes: parsed.memory_bytes
@@ -155,6 +162,7 @@ export class SorobanCliService {
                         return {
                             success: true,
                             result: parsed.result || parsed.returnValue || parsed,
+                            rawResult: parsed,
                             resourceUsage: parsed.resource_usage || parsed.resourceUsage || parsed.cpu_instructions ? {
                                 cpuInstructions: parsed.cpu_instructions,
                                 memoryBytes: parsed.memory_bytes
@@ -165,14 +173,16 @@ export class SorobanCliService {
                     // If no JSON found, return raw output (CLI may output plain text)
                     return {
                         success: true,
-                        result: output
+                        result: output,
+                        rawResult: output,
                     };
                 }
             } catch (parseError) {
                 // If parsing fails, return raw output
                 return {
                     success: true,
-                    result: stdout.trim()
+                    result: stdout.trim(),
+                    rawResult: stdout.trim(),
                 };
             }
         } catch (error) {
