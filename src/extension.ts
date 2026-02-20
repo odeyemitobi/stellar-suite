@@ -23,6 +23,7 @@ let versionTracker: ContractVersionTracker | undefined;
 let metadataService: ContractMetadataService | undefined;
 let syncService: WorkspaceStateSyncService | undefined;
 let syncStatusProvider: SyncStatusProvider | undefined;
+let encryptionService: WorkspaceStateEncryptionService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
@@ -149,7 +150,8 @@ export function activate(context: vscode.ExtensionContext) {
             copyContractIdCommand,
             showVersionMismatchesCommand,
             watcher,
-            syncStatusProvider || { dispose: () => {} }
+            syncStatusProvider || { dispose: () => {} },
+            encryptionService
         );
 
         outputChannel.appendLine('[Extension] Extension activation complete');
