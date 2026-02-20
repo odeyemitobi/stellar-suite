@@ -155,7 +155,6 @@ export function activate(context: vscode.ExtensionContext) {
         );
 
         outputChannel.appendLine('[Extension] Extension activation complete');
-        console.log('[Stellar Suite] Extension activation complete');
 
     const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
     watcher.onDidChange(() => {
