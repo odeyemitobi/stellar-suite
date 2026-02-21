@@ -40,6 +40,8 @@ import { RpcAuthService } from "./services/rpcAuthService";
 import { createEnvVariableService } from "./services/envVariableVscode";
 import { EnvVariableService } from "./services/envVariableService";
 import { RpcFallbackService } from "./services/rpcFallbackService";
+import { createToastNotificationService } from "./services/toastNotificationVscode";
+import { ToastNotificationService } from "./services/toastNotificationService";
 import { RpcRetryService } from "./services/rpcRetryService";
 import { createCliConfigurationService } from "./services/cliConfigurationVscode";
 import { ContractDependencyDetectionService } from "./services/contractDependencyDetectionService";
@@ -56,6 +58,7 @@ import { SyncStatusProvider } from "./ui/syncStatusProvider";
 import { RpcHealthStatusBar } from "./ui/rpcHealthStatusBar";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
 import { RetryStatusBarItem } from "./ui/retryStatusBar";
+import { ToastNotificationPanel } from "./ui/toastNotificationPanel";
 
 // Global service instances
 let sidebarProvider: SidebarViewProvider | undefined;
@@ -83,6 +86,8 @@ let fallbackService: RpcFallbackService | undefined;
 let dependencyDetectionService: ContractDependencyDetectionService | undefined;
 let dependencyWatcherService: ContractDependencyWatcherService | undefined;
 let contractWorkspaceStateService: ContractWorkspaceStateService | undefined;
+let toastNotificationService: ToastNotificationService | undefined;
+let toastNotificationPanel: ToastNotificationPanel | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
@@ -146,6 +151,21 @@ const copyContractIdCommand = vscode.commands.registerCommand(
   },
 );
 
+    // 9. Initialize Toast Notification System
+    toastNotificationService = createToastNotificationService(context);
+    toastNotificationPanel = new ToastNotificationPanel(toastNotificationService);
+
+    const showNotificationHistoryCommand = vscode.commands.registerCommand(
+      'stellarSuite.showNotificationHistory',
+      () => toastNotificationPanel?.showNotificationHistory()
+    );
+
+    context.subscriptions.push(showNotificationHistoryCommand);
+    outputChannel.appendLine('[Extension] Toast notification system initialized');
+
+    outputChannel.appendLine("[Extension] All services initialized");
+
+    // 10. Register Commands
     const simulateCommand = vscode.commands.registerCommand(
       "stellarSuite.simulateTransaction",
       () => simulateTransaction(context, sidebarProvider),
@@ -286,6 +306,21 @@ const refreshCommand = vscode.commands.registerCommand(
 );
 
 // 10. File Watchers
+    const simulateFromSidebarCommand = vscode.commands.registerCommand(
+      "stellarSuite.simulateFromSidebar",
+      (contractId: string) =>
+        simulateTransaction(
+          context,
+          sidebarProvider,
+          simulationHistoryService,
+          cliHistoryService,
+          fallbackService,
+          resourceProfilingService,
+          contractId,
+        ),
+    );
+
+    // 11. File Watchers
     const watcher = vscode.workspace.createFileSystemWatcher(
       "**/{Cargo.toml,*.wasm}",
     );
@@ -294,7 +329,7 @@ const refreshCommand = vscode.commands.registerCommand(
     watcher.onDidCreate(refreshOnChange);
     watcher.onDidDelete(refreshOnChange);
 
-    // 11. Subscriptions
+    // 12. Subscriptions
     context.subscriptions.push(
       simulateCommand,
       deployCommand,
@@ -314,13 +349,15 @@ const refreshCommand = vscode.commands.registerCommand(
       outputChannel,
       healthMonitor!,
       healthStatusBar!,
-      retryStatusBar || { dispose: () => { } },
+      retryStatusBar || { dispose: () => {} },
       retryService!,
       fallbackService!,
       { dispose: () => metadataService?.dispose() },
-      compilationMonitor || { dispose: () => { } },
-      compilationStatusProvider || { dispose: () => { } },
-      syncStatusProvider || { dispose: () => { } },
+      compilationMonitor || { dispose: () => {} },
+      compilationStatusProvider || { dispose: () => {} },
+      syncStatusProvider || { dispose: () => {} },
+      toastNotificationService || { dispose: () => {} },
+      toastNotificationPanel || { dispose: () => {} },
     );
 
       outputChannel.appendLine("[Extension] Extension activation complete");
@@ -335,3 +372,21 @@ const refreshCommand = vscode.commands.registerCommand(
       console.error("[Stellar Suite] Activation error:", error);
     }
   }
+    console.error("[Stellar Suite] Activation error:", error);
+    vscode.window.showErrorMessage(
+      `Stellar Suite activation failed: ${errorMsg}`,
+    );
+  }
+}
+
+export function deactivate() {
+  dependencyWatcherService?.dispose();
+  healthMonitor?.dispose();
+  healthStatusBar?.dispose();
+  syncStatusProvider?.dispose();
+  compilationStatusProvider?.dispose();
+  compilationMonitor?.dispose();
+  metadataService?.dispose();
+  toastNotificationService?.dispose();
+  toastNotificationPanel?.dispose();
+}
