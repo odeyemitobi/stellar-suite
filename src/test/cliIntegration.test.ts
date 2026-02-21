@@ -20,12 +20,16 @@ declare function require(name: string): any;
 declare const process: { exitCode?: number };
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 import { SorobanCliService } from '../services/sorobanCliService';
 import { MockCliOutputStreamingService } from './mocks/mockCliOutputStreamingService';
 import { CancellationTokenSource } from '../services/cliCancellation';
 import { CliTimeoutService } from '../services/cliTimeoutService';
 import { CliHistoryService } from '../services/cliHistoryService';
+import { CliCleanupUtilities } from '../utils/cliCleanupUtilities';
 
 // ── Shared helpers ────────────────────────────────────────────
 
@@ -974,6 +978,264 @@ async function testMockCli_cancelledResponseReturnsFailure() {
     console.log('  [ok] MockCliOutputStreamingService cancelled response returns failure');
 }
 
+// ── Section 9: CLI Version Compatibility ──────────────────────
+//
+// Verifies that the integration layer correctly handles the varied
+// output formats produced by different Stellar CLI releases.
+
+async function testVersionCompat_oldFormatTopLevelValue() {
+    // CLI v20.x could emit a bare value JSON (no result wrapper)
+    const { service, mock } = createServiceWithMock();
+    mock.setDefaultResponse({ exitCode: 0, stdout: JSON.stringify({ value: 42 }), stderr: '' });
+
+    const sim = await service.simulateTransaction(VALID_CONTRACT_ID, 'get', [], 'testnet');
+
+    assert.strictEqual(sim.success, true);
+    assert.ok(sim.result !== undefined, 'result should be parsed');
+    console.log('  [ok] handles CLI v20.x top-level value object');
+}
+
+async function testVersionCompat_newFormatReturnValue() {
+    // CLI v21+ typically emits { returnValue: ... } (may be XDR-encoded)
+    const { service, mock } = createServiceWithMock();
+    mock.setDefaultResponse({
+        exitCode: 0,
+        stdout: JSON.stringify({ returnValue: 'AAAAAA==' }),
+        stderr: '',
+    });
+
+    const sim = await service.simulateTransaction(VALID_CONTRACT_ID, 'invoke', [], 'testnet');
+
+    assert.strictEqual(sim.success, true);
+    assert.strictEqual(sim.result, 'AAAAAA==');
+    console.log('  [ok] handles CLI v21+ returnValue output format');
+}
+
+async function testVersionCompat_legacyResourceUsageFields() {
+    // Older CLIs use snake_case resource fields: cpu_instructions / memory_bytes
+    const { service, mock } = createServiceWithMock();
+    mock.setDefaultResponse({
+        exitCode: 0,
+        stdout: JSON.stringify({ result: 'ok', cpu_instructions: 9999, memory_bytes: 2048 }),
+        stderr: '',
+    });
+
+    const sim = await service.simulateTransaction(VALID_CONTRACT_ID, 'fn', [], 'testnet');
+
+    assert.strictEqual(sim.success, true);
+    assert.ok(sim.resourceUsage, 'should have resourceUsage');
+    assert.strictEqual(sim.resourceUsage!.cpuInstructions, 9999);
+    assert.strictEqual(sim.resourceUsage!.memoryBytes, 2048);
+    console.log('  [ok] handles legacy cpu_instructions/memory_bytes field names');
+}
+
+async function testVersionCompat_newResourceUsageObject() {
+    // The service treats the presence of a 'resourceUsage' key as the signal that
+    // resource metadata exists; the actual counts are still read from the companion
+    // flat snake_case fields (cpu_instructions / memory_bytes).
+    const { service, mock } = createServiceWithMock();
+    mock.setDefaultResponse({
+        exitCode: 0,
+        stdout: JSON.stringify({
+            result: 'ok',
+            resourceUsage: {},
+            cpu_instructions: 1234,
+            memory_bytes: 512,
+        }),
+        stderr: '',
+    });
+
+    const sim = await service.simulateTransaction(VALID_CONTRACT_ID, 'fn', [], 'testnet');
+
+    assert.strictEqual(sim.success, true);
+    assert.ok(sim.resourceUsage, 'should have resourceUsage when the resourceUsage key is present');
+    assert.strictEqual(sim.resourceUsage!.cpuInstructions, 1234);
+    assert.strictEqual(sim.resourceUsage!.memoryBytes, 512);
+    console.log('  [ok] resourceUsage key triggers resource detection; values read from flat fields');
+}
+
+async function testVersionCompat_hostErrorFromOlderCli() {
+    // Older CLI versions format contract panics as "HostError: Error(Contract, #N)"
+    const { service, mock } = createServiceWithMock();
+    mock.setDefaultResponse({
+        exitCode: 1,
+        stdout: '',
+        stderr: 'host invocation failed\nHostError: Error(WasmVm, InvalidAction)',
+        error: 'Command exited with code 1.',
+    });
+
+    const sim = await service.simulateTransaction(VALID_CONTRACT_ID, 'fn', [], 'testnet');
+
+    assert.strictEqual(sim.success, false);
+    assert.ok(sim.errorType, 'should classify the HostError');
+    console.log('  [ok] classifies HostError format produced by older CLI versions');
+}
+
+async function testVersionCompat_versionOutputPrefixIgnored() {
+    // Some CLI versions prepend a banner line before the JSON payload
+    const { service, mock } = createServiceWithMock();
+    const payload = { result: 'banner-test' };
+    mock.setDefaultResponse({
+        exitCode: 0,
+        stdout: `stellar 21.5.0\n${JSON.stringify(payload)}`,
+        stderr: '',
+    });
+
+    const sim = await service.simulateTransaction(VALID_CONTRACT_ID, 'check', [], 'testnet');
+
+    assert.strictEqual(sim.success, true);
+    assert.strictEqual(sim.result, 'banner-test');
+    console.log('  [ok] ignores CLI version banner line before JSON payload');
+}
+
+async function testVersionCompat_multipleNetworks() {
+    // Verify --network flag is forwarded correctly for every supported network
+    const networks = ['testnet', 'mainnet', 'futurenet'];
+    for (const network of networks) {
+        const { service, mock } = createServiceWithMock();
+        mock.setDefaultResponse({ exitCode: 0, stdout: JSON.stringify({ result: network }), stderr: '' });
+
+        await service.simulateTransaction(VALID_CONTRACT_ID, 'check', [], network);
+
+        const args = mock.lastRequest!.args;
+        const netIdx = args.indexOf('--network');
+        assert.ok(netIdx !== -1, `--network flag should be present for ${network}`);
+        assert.strictEqual(args[netIdx + 1], network);
+    }
+    console.log('  [ok] --network flag is forwarded correctly for testnet, mainnet, futurenet');
+}
+
+// ── Section 10: Cleanup After Operations ──────────────────────
+//
+// Verifies that CliCleanupUtilities correctly registers and executes
+// cleanup tasks (file / directory removal) and is resilient to errors.
+
+async function testCleanup_fileRemovedAfterCleanupAll() {
+    const cleanup = new CliCleanupUtilities();
+    const tmpFile = path.join(os.tmpdir(), `stellar_test_${Date.now()}.tmp`);
+    fs.writeFileSync(tmpFile, 'test-data');
+    cleanup.registerTask({ type: 'file', target: tmpFile, description: 'temp artifact' });
+
+    assert.ok(fs.existsSync(tmpFile), 'file should exist before cleanup');
+    await cleanup.cleanupAll();
+    assert.strictEqual(fs.existsSync(tmpFile), false, 'file should be removed after cleanup');
+    console.log('  [ok] cleanupAll removes registered file tasks');
+}
+
+async function testCleanup_nonExistentFileDoesNotThrow() {
+    const cleanup = new CliCleanupUtilities();
+    cleanup.registerTask({ type: 'file', target: '/nonexistent/stellar_missing.tmp' });
+
+    let threw = false;
+    try {
+        await cleanup.cleanupAll();
+    } catch {
+        threw = true;
+    }
+
+    assert.strictEqual(threw, false);
+    console.log('  [ok] cleanupAll does not throw for a non-existent file');
+}
+
+async function testCleanup_multipleFilesAllRemoved() {
+    const cleanup = new CliCleanupUtilities();
+    const tmpDir = os.tmpdir();
+    const now = Date.now();
+    const files: string[] = [
+        path.join(tmpDir, `stellar_ca_${now}.tmp`),
+        path.join(tmpDir, `stellar_cb_${now}.tmp`),
+        path.join(tmpDir, `stellar_cc_${now}.tmp`),
+    ];
+
+    for (const f of files) {
+        fs.writeFileSync(f, 'data');
+        cleanup.registerTask({ type: 'file', target: f });
+    }
+
+    await cleanup.cleanupAll();
+
+    for (const f of files) {
+        assert.strictEqual(fs.existsSync(f), false, `${path.basename(f)} should be removed`);
+    }
+    console.log('  [ok] cleanupAll removes all individually registered file tasks');
+}
+
+async function testCleanup_taskListClearedAfterCleanupAll() {
+    const cleanup = new CliCleanupUtilities();
+    const tmpFile = path.join(os.tmpdir(), `stellar_clear_${Date.now()}.tmp`);
+    fs.writeFileSync(tmpFile, 'x');
+    cleanup.registerTask({ type: 'file', target: tmpFile });
+
+    await cleanup.cleanupAll(); // runs and clears the task list
+
+    // Recreate the file; a second cleanupAll with an empty task list must not remove it
+    fs.writeFileSync(tmpFile, 'x');
+    await cleanup.cleanupAll();
+    const stillExists = fs.existsSync(tmpFile);
+    if (stillExists) { fs.unlinkSync(tmpFile); } // manual cleanup
+
+    assert.strictEqual(stillExists, true, 'second cleanupAll should not re-execute cleared tasks');
+    console.log('  [ok] task list is cleared after cleanupAll so tasks do not re-run');
+}
+
+async function testCleanup_directoryRemovedAfterCleanupAll() {
+    const cleanup = new CliCleanupUtilities();
+    const tmpDir = path.join(os.tmpdir(), `stellar_dir_${Date.now()}`);
+    fs.mkdirSync(tmpDir);
+    fs.writeFileSync(path.join(tmpDir, 'artifact.wasm'), 'mock-wasm');
+    cleanup.registerTask({ type: 'directory', target: tmpDir, description: 'build output dir' });
+
+    assert.ok(fs.existsSync(tmpDir), 'directory should exist before cleanup');
+    await cleanup.cleanupAll();
+    assert.strictEqual(fs.existsSync(tmpDir), false, 'directory should be removed after cleanup');
+    console.log('  [ok] cleanupAll removes a registered directory and its contents');
+}
+
+async function testCleanup_nonExistentDirectoryDoesNotThrow() {
+    const cleanup = new CliCleanupUtilities();
+    cleanup.registerTask({ type: 'directory', target: '/nonexistent/stellar_dir_xyz' });
+
+    let threw = false;
+    try {
+        await cleanup.cleanupAll();
+    } catch {
+        threw = true;
+    }
+
+    assert.strictEqual(threw, false);
+    console.log('  [ok] cleanupAll does not throw for a non-existent directory');
+}
+
+async function testCleanup_noTasksRegisteredIsNoOp() {
+    const cleanup = new CliCleanupUtilities();
+
+    let threw = false;
+    try {
+        await cleanup.cleanupAll();
+    } catch {
+        threw = true;
+    }
+
+    assert.strictEqual(threw, false);
+    console.log('  [ok] cleanupAll with no tasks registered is a harmless no-op');
+}
+
+async function testCleanup_continuesAfterOneTaskFails() {
+    const cleanup = new CliCleanupUtilities();
+    const tmpFile = path.join(os.tmpdir(), `stellar_continue_${Date.now()}.tmp`);
+    fs.writeFileSync(tmpFile, 'data');
+
+    // First task targets a non-existent path (should not abort the run)
+    cleanup.registerTask({ type: 'file', target: '/definitely/does/not/exist/stellar.tmp' });
+    // Second task is real and must still be cleaned up
+    cleanup.registerTask({ type: 'file', target: tmpFile });
+
+    await cleanup.cleanupAll();
+
+    assert.strictEqual(fs.existsSync(tmpFile), false, 'real file should still be cleaned up');
+    console.log('  [ok] cleanupAll continues cleaning remaining tasks when one task is a no-op');
+}
+
 // ── Test runner ───────────────────────────────────────────────
 
 async function run() {
@@ -1058,6 +1320,25 @@ async function run() {
         testMockCli_combinedOutputContainsBothStreams,
         testMockCli_timedOutResponseReturnsFailure,
         testMockCli_cancelledResponseReturnsFailure,
+
+        // CLI version compatibility
+        testVersionCompat_oldFormatTopLevelValue,
+        testVersionCompat_newFormatReturnValue,
+        testVersionCompat_legacyResourceUsageFields,
+        testVersionCompat_newResourceUsageObject,
+        testVersionCompat_hostErrorFromOlderCli,
+        testVersionCompat_versionOutputPrefixIgnored,
+        testVersionCompat_multipleNetworks,
+
+        // Cleanup after operations
+        testCleanup_fileRemovedAfterCleanupAll,
+        testCleanup_nonExistentFileDoesNotThrow,
+        testCleanup_multipleFilesAllRemoved,
+        testCleanup_taskListClearedAfterCleanupAll,
+        testCleanup_directoryRemovedAfterCleanupAll,
+        testCleanup_nonExistentDirectoryDoesNotThrow,
+        testCleanup_noTasksRegisteredIsNoOp,
+        testCleanup_continuesAfterOneTaskFails,
     ];
 
     let passed = 0;
