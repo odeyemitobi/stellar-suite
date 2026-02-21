@@ -61,6 +61,7 @@ import { OfflineSimulationService } from "./services/offlineSimulationService";
 // UI
 import { SidebarViewProvider } from "./ui/sidebarView";
 import { SyncStatusProvider } from "./ui/syncStatusProvider";
+import { registerSimulationCacheCommands } from './commands/simulationCacheCommands';
 import { RpcHealthStatusBar } from "./ui/rpcHealthStatusBar";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
 import { RetryStatusBarItem } from "./ui/retryStatusBar";
@@ -102,6 +103,8 @@ let toastNotificationPanel: ToastNotificationPanel | undefined;
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
   outputChannel.appendLine("[Extension] Activating Stellar Suite extension...");
+  console.log("[Stellar Suite] Extension activating...");
+  registerSimulationCacheCommands(context);
 
   try {
     // 0. Run state migrations

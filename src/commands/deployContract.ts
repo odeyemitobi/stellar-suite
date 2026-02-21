@@ -5,6 +5,7 @@ import { formatError } from '../utils/errorFormatter';
 import { SidebarViewProvider } from '../ui/sidebarView';
 import * as path from 'path';
 import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
+import { SimulationCacheService } from '../services/simulationCacheService';
 import { DeploymentSigningWorkflowService } from '../services/deploymentSigningWorkflowService';
 import {
     DeploymentSigningMethod,
@@ -63,7 +64,7 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
         const selectedContractPath = context.workspaceState.get<string>('selectedContractPath');
         if (selectedContractPath) {
             outputChannel.appendLine(`[Deploy] Using selected contract path: ${selectedContractPath}`);
-            context.workspaceState.update('selectedContractPath', undefined);
+            await context.workspaceState.update('selectedContractPath', undefined);
         }
 
         await vscode.window.withProgress(
@@ -102,7 +103,6 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     if (fs.existsSync(selectedContractPath)) {
                         const stats = fs.statSync(selectedContractPath);
                         if (stats.isFile() && selectedContractPath.endsWith('.wasm')) {
-                            // It's a WASM file
                             wasmPath = selectedContractPath;
                             deployFromWasm = true;
                             outputChannel.appendLine(`Using selected WASM file: ${wasmPath}`);
@@ -182,6 +182,21 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                                     }
                                 );
 
+
+                        if (contractDir) {
+                            const expectedWasm = WasmDetector.getExpectedWasmPath(contractDir);
+                            const fs = require('fs');
+                            if (expectedWasm && fs.existsSync(expectedWasm)) {
+                                const useExisting = await vscode.window.showQuickPick(
+                                    [
+                                        { label: 'Deploy existing WASM', value: 'wasm', detail: expectedWasm },
+                                        { label: 'Build and deploy', value: 'build' }
+                                    ],
+                                    {
+                                        placeHolder: 'WASM file found. Deploy existing or build first?'
+                                    }
+                                );
+
                                 if (!useExisting) {
                                     return;
                                 }
@@ -198,6 +213,13 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             deployFromWasm = true;
                             outputChannel.appendLine(`Using WASM file: ${wasmPath}`);
                         } else {
+                            const fs = require('fs');
+                            const wasmWithStats = wasmFiles
+                                .map(file => ({
+                                    path: file,
+                                    mtime: fs.statSync(file).mtime.getTime()
+                                }))
+                                .sort((a, b) => b.mtime - a.mtime);
                             // Multiple WASM files - show picker sorted by modification time
                             const fs = require('fs');
                             const wasmWithStats = wasmFiles.map(file => ({
@@ -223,7 +245,6 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             outputChannel.appendLine(`Selected WASM file: ${wasmPath}`);
                         }
                     } else {
-                        // Fallback: try active editor (if any)
                         contractDir = WasmDetector.getActiveContractDirectory();
                         if (contractDir) {
                             outputChannel.appendLine(`Found contract from active file: ${contractDir}`);
@@ -252,9 +273,7 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             canSelectFiles: true,
                             canSelectFolders: false,
                             canSelectMany: false,
-                            filters: {
-                                'WASM files': ['wasm']
-                            },
+                            filters: { 'WASM files': ['wasm'] },
                             title: 'Select WASM file to deploy'
                         });
 
@@ -290,6 +309,7 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                 const signingWorkflow = new DeploymentSigningWorkflowService(context, outputChannel);
                 const signingConfig = vscode.workspace.getConfiguration('stellarSuite.signing');
 
+                let result: any;
                 let result;
                 let signingResult: DeploymentSigningResult | undefined;
                 let deployableWasmPath: string | undefined = wasmPath || undefined;
@@ -298,6 +318,12 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                 let contractNameForRecord: string | undefined;
 
                 if (deployFromWasm && wasmPath) {
+                    // Deploy directly from WASM
+                    progress.report({ increment: 30, message: 'Deploying from WASM...' });
+                    outputChannel.appendLine(`\nDeploying contract from: ${wasmPath}`);
+                    result = await deployer.deployFromWasm(wasmPath);
+
+                    // Best-effort: walk up from the WASM to find a Cargo.toml.
                     // Deploy directly from provided WASM (no build)
                     contractRootDir = path.dirname(wasmPath);
 
@@ -312,6 +338,7 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                                 break;
                             }
                             const parent = path.dirname(dir);
+                            if (parent === dir) { break; }
                             if (parent === dir) break;
                             dir = parent;
                         }
@@ -324,6 +351,13 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
                     outputChannel.appendLine('Running: stellar contract build\n');
 
+                    result = await deployer.buildAndDeploy(contractDir);
+                    contractRootDir = contractDir;
+
+                    if (result.buildOutput) {
+                        outputChannel.appendLine('=== Build Output ===');
+                        outputChannel.appendLine(result.buildOutput);
+                        outputChannel.appendLine('');
                     const buildResult = await deployer.buildContract(contractDir, {
                         cancellationToken: token,
                         onStdout: (chunk) => {
@@ -480,6 +514,23 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
 
                     // Store contract ID in workspace state
                     if (result.contractId) {
+                        // Best-effort contract name (Cargo.toml name if available, else directory name).
+                        if (contractRootDir) {
+                            try {
+                                const fs = require('fs');
+                                const cargoPath = path.join(contractRootDir, 'Cargo.toml');
+                                if (fs.existsSync(cargoPath)) {
+                                    const content = fs.readFileSync(cargoPath, 'utf-8');
+                                    const match = content.match(/^\s*name\s*=\s*"([^"]+)"/m);
+                                    contractNameForRecord = match ? match[1] : path.basename(contractRootDir);
+                                } else {
+                                    contractNameForRecord = path.basename(contractRootDir);
+                                }
+                            } catch {
+                                contractNameForRecord = path.basename(contractRootDir);
+                            }
+                        } else if (wasmPath) {
+                            contractNameForRecord = path.basename(wasmPath);
                         const deployedAt = new Date().toISOString();
 
                         // Best-effort contract name (Cargo.toml name if available, else directory name).
@@ -509,6 +560,41 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                         }
 
                         const deploymentRecord = {
+                            contractId: result.contractId,
+                            contractName: contractNameForRecord,
+                            deployedAt: new Date().toISOString(),
+                            network,
+                            source,
+                            transactionHash: result.transactionHash,
+                        };
+
+                        await context.workspaceState.update('lastContractId', result.contractId);
+                        await context.workspaceState.update('lastDeployment', deploymentRecord);
+
+                        // Append deployment history (used by sidebar + sync service)
+                        const history = context.workspaceState.get<any[]>('stellarSuite.deploymentHistory', []);
+                        history.push(deploymentRecord);
+                        await context.workspaceState.update('stellarSuite.deploymentHistory', history);
+
+                        // Update deployedContracts index so the sidebar can show "Deployed" for a contract directory.
+                        if (contractRootDir) {
+                            const deployedContracts = context.workspaceState.get<Record<string, string>>(
+                                'stellarSuite.deployedContracts',
+                                {}
+                            );
+                            deployedContracts[contractRootDir] = result.contractId;
+                            await context.workspaceState.update('stellarSuite.deployedContracts', deployedContracts);
+                        }
+
+                        // Record deployed version snapshot if we can read Cargo.toml.
+                        try {
+                            const tracker = sidebarProvider?.getVersionTracker();
+                            if (tracker && contractRootDir) {
+                                const localVersion = tracker.getLocalVersion(contractRootDir);
+                                if (localVersion) {
+                                    await tracker.recordDeployedVersion(
+                                        path.join(contractRootDir, 'Cargo.toml'),
+                                        contractNameForRecord || path.basename(contractRootDir),
                             contractId: result.contractId,
                             contractName: contractNameForRecord,
                             deployedAt,
@@ -572,6 +658,15 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             // ignore
                         }
 
+                        // Deployment changes -> invalidate simulation cache (safe + cheap).
+                        try {
+                            const simCache = SimulationCacheService.getInstance(context);
+                            // Clear all: simplest, guaranteed correct (no stale contractId references).
+                            // If your cache service supports selective invalidation, you can swap to that.
+                            simCache.clear?.();
+                        } catch {
+                            // ignore cache errors
+                        }
 
                         // Update sidebar view
                         if (sidebarProvider) {
@@ -592,7 +687,6 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             await vscode.env.clipboard.writeText(result.contractId);
                             vscode.window.showInformationMessage('Contract ID copied to clipboard');
                         } else if (action === 'Use for Simulation') {
-                            // Could trigger simulation command here
                             vscode.commands.executeCommand('stellarSuite.simulateTransaction');
                         }
                     }
