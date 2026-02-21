@@ -43,6 +43,7 @@ import { EnvVariableService } from "./services/envVariableService";
 import { RpcFallbackService } from "./services/rpcFallbackService";
 import { createToastNotificationService } from "./services/toastNotificationVscode";
 import { ToastNotificationService } from "./services/toastNotificationService";
+import { NotificationPreferencesService } from "./services/notificationPreferencesService";
 import { RpcRetryService } from "./services/rpcRetryService";
 import { createCliConfigurationService } from "./services/cliConfigurationVscode";
 import { createCliVersionService } from "./services/cliVersionVscode";
@@ -66,6 +67,7 @@ import { RpcHealthStatusBar } from "./ui/rpcHealthStatusBar";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
 import { RetryStatusBarItem } from "./ui/retryStatusBar";
 import { ToastNotificationPanel } from "./ui/toastNotificationPanel";
+import { showNotificationPreferences } from "./ui/notificationPreferencesUI";
 
 // Global service instances
 let sidebarProvider: SidebarViewProvider | undefined;
@@ -99,6 +101,7 @@ let dependencyWatcherService: ContractDependencyWatcherService | undefined;
 let contractWorkspaceStateService: ContractWorkspaceStateService | undefined;
 let toastNotificationService: ToastNotificationService | undefined;
 let toastNotificationPanel: ToastNotificationPanel | undefined;
+let notificationPreferencesService: NotificationPreferencesService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
@@ -175,8 +178,9 @@ const copyContractIdCommand = vscode.commands.registerCommand(
   },
 );
 
-    // 9. Initialize Toast Notification System
-    toastNotificationService = createToastNotificationService(context);
+    // 9. Initialize Notification Preferences and Toast Notification System
+    notificationPreferencesService = new NotificationPreferencesService(context.workspaceState);
+    toastNotificationService = createToastNotificationService(context, notificationPreferencesService);
     toastNotificationPanel = new ToastNotificationPanel(toastNotificationService);
 
     const showNotificationHistoryCommand = vscode.commands.registerCommand(
@@ -184,12 +188,17 @@ const copyContractIdCommand = vscode.commands.registerCommand(
       () => toastNotificationPanel?.showNotificationHistory()
     );
 
+    const openNotificationPreferencesCommand = vscode.commands.registerCommand(
+      'stellarSuite.openNotificationPreferences',
+      () => notificationPreferencesService && showNotificationPreferences(notificationPreferencesService)
+    );
+
     // CLI Version Detection
     cliVersionService = createCliVersionService(context, outputChannel);
     context.subscriptions.push(cliVersionService);
     outputChannel.appendLine('[Extension] CLI version detection initialized');
 
-    context.subscriptions.push(showNotificationHistoryCommand);
+    context.subscriptions.push(showNotificationHistoryCommand, openNotificationPreferencesCommand);
     outputChannel.appendLine('[Extension] Toast notification system initialized');
 
     outputChannel.appendLine("[Extension] All services initialized");
