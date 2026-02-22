@@ -23,6 +23,7 @@ import { registerRpcLoggingCommands } from "./commands/rpcLoggingCommands";
 import { registerDependencyCommands } from "./commands/dependencyCommands";
 import { exportSimulationHistory } from "./commands/exportCommands";
 import { registerOfflineSimulationCommands } from "./commands/offlineSimulationCommands";
+import { registerAbiCommands } from "./commands/abiCommands";
 
 // Services
 import { ContractGroupService } from "./services/contractGroupService";
@@ -58,6 +59,10 @@ import { ContractWorkspaceStateService } from "./services/contractWorkStateServi
 import { ContractCacheService } from "./services/contractCacheService";
 import { OfflineModeDetectionService } from "./services/offlineModeDetectionService";
 import { OfflineSimulationService } from "./services/offlineSimulationService";
+import { ContractAbiService } from "./services/contractAbiService";
+import { SignatureCacheService } from "./services/signatureCacheService";
+import { SourceInspectorService } from "./services/sourceInspectorService";
+import { parseRustSource } from "./utils/rustSourceParser";
 
 // UI
 import { SidebarViewProvider } from "./ui/sidebarView";
@@ -102,6 +107,9 @@ let contractWorkspaceStateService: ContractWorkspaceStateService | undefined;
 let toastNotificationService: ToastNotificationService | undefined;
 let toastNotificationPanel: ToastNotificationPanel | undefined;
 let notificationPreferencesService: NotificationPreferencesService | undefined;
+let contractAbiService: ContractAbiService | undefined;
+let signatureCacheService: SignatureCacheService | undefined;
+let sourceInspectorService: SourceInspectorService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
@@ -403,9 +411,9 @@ export function activate(context: vscode.ExtensionContext) {
           } else {
             const action = result.upgradeCommand
               ? await vscode.window.showWarningMessage(
-                  result.message,
-                  "Copy Upgrade Command",
-                )
+                result.message,
+                "Copy Upgrade Command",
+              )
               : undefined;
             if (action === "Copy Upgrade Command" && result.upgradeCommand) {
               await vscode.env.clipboard.writeText(result.upgradeCommand);
@@ -441,6 +449,90 @@ export function activate(context: vscode.ExtensionContext) {
       sidebarProvider,
     );
     registerHealthCommands(context, healthMonitor!);
+
+    // Initialize ABI service and register commands
+    contractAbiService = new ContractAbiService(context, outputChannel);
+    registerAbiCommands(context, contractAbiService, outputChannel);
+    outputChannel.appendLine("[Extension] Contract ABI service initialized");
+
+    // Initialize source inspector service
+    signatureCacheService = new SignatureCacheService(context, outputChannel);
+    const vscodeFileSystem = {
+      readFile: async (filePath: string) => {
+        const uri = vscode.Uri.file(filePath);
+        const bytes = await vscode.workspace.fs.readFile(uri);
+        return Buffer.from(bytes).toString("utf-8");
+      },
+      findFiles: async (dirPath: string, pattern: string) => {
+        const globPattern = new vscode.RelativePattern(dirPath, `**/${pattern}`);
+        const uris = await vscode.workspace.findFiles(globPattern);
+        return uris.map((u) => u.fsPath);
+      },
+    };
+    sourceInspectorService = new SourceInspectorService(
+      signatureCacheService,
+      vscodeFileSystem,
+      outputChannel,
+    );
+
+    const parseContractSourceCommand = vscode.commands.registerCommand(
+      "stellarSuite.parseContractSource",
+      async () => {
+        const uris = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { "Rust files": ["rs"] },
+          openLabel: "Parse Contract Source",
+        });
+        if (!uris || uris.length === 0) {
+          return;
+        }
+        try {
+          const bytes = await vscode.workspace.fs.readFile(uris[0]);
+          const content = Buffer.from(bytes).toString("utf-8");
+          const parsed = parseRustSource(content, uris[0].fsPath);
+          const pubFns = parsed.functions.filter(
+            (f) => f.isContractImpl && f.visibility === "pub",
+          );
+
+          outputChannel.clear();
+          outputChannel.appendLine(
+            `Contract: ${parsed.contractName ?? "(unnamed)"}`,
+          );
+          outputChannel.appendLine(
+            `Public contract functions: ${pubFns.length}`,
+          );
+          outputChannel.appendLine("─".repeat(50));
+          for (const fn of pubFns) {
+            const params = fn.parameters
+              .map(
+                (p) =>
+                  `${p.name}: ${p.isReference ? "&" : ""}${p.isMutable ? "mut " : ""}${p.typeStr}`,
+              )
+              .join(", ");
+            const retStr = fn.returnType ? ` -> ${fn.returnType}` : "";
+            outputChannel.appendLine(`  pub fn ${fn.name}(${params})${retStr}`);
+            if (fn.docComments.length > 0) {
+              outputChannel.appendLine(
+                `    ↳ ${fn.docComments[0]}`,
+              );
+            }
+          }
+          outputChannel.show(true);
+          vscode.window.showInformationMessage(
+            `Parsed ${pubFns.length} public contract function(s) from ${parsed.contractName ?? "source"}.`,
+          );
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          vscode.window.showErrorMessage(
+            `Failed to parse contract source: ${msg}`,
+          );
+        }
+      },
+    );
+    context.subscriptions.push(parseContractSourceCommand);
+    outputChannel.appendLine(
+      "[Extension] Source inspector service initialized",
+    );
 
     // Sidebar actions
     const deployFromSidebarCommand = vscode.commands.registerCommand(
@@ -500,15 +592,15 @@ export function activate(context: vscode.ExtensionContext) {
       outputChannel,
       healthMonitor!,
       healthStatusBar!,
-      retryStatusBar || { dispose: () => {} },
+      retryStatusBar || { dispose: () => { } },
       retryService!,
       fallbackService!,
       { dispose: () => metadataService?.dispose() },
-      compilationMonitor || { dispose: () => {} },
-      compilationStatusProvider || { dispose: () => {} },
-      syncStatusProvider || { dispose: () => {} },
-      toastNotificationService || { dispose: () => {} },
-      toastNotificationPanel || { dispose: () => {} },
+      compilationMonitor || { dispose: () => { } },
+      compilationStatusProvider || { dispose: () => { } },
+      syncStatusProvider || { dispose: () => { } },
+      toastNotificationService || { dispose: () => { } },
+      toastNotificationPanel || { dispose: () => { } },
     );
 
     outputChannel.appendLine("[Extension] Extension activation complete");
