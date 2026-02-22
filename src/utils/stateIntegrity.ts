@@ -497,3 +497,31 @@ export function flattenObjectKeys(
 
     return keys;
 }
+
+// ============================================================
+// Workspace State Integrity Validator
+// ============================================================
+
+/**
+ * Validates minimal workspace state integrity.
+ * Ensures required fields and correct types.
+ */
+export function validateStateIntegrity(state: unknown): boolean {
+    if (!isObject(state)) {
+        return false;
+    }
+
+    const s = state as any;
+
+    // version must exist and be a number
+    if (!isNumber(s.version)) {
+        return false;
+    }
+
+    // items must exist and be an array
+    if (!Array.isArray(s.items)) {
+        return false;
+    }
+
+    return true;
+}
