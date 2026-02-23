@@ -38,7 +38,6 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                 if (!value || value.trim().length === 0) {
                     return 'Contract ID is required';
                 }
-                // Basic validation for Stellar contract ID format
                 if (!value.match(/^C[A-Z0-9]{55}$/)) {
                     return 'Invalid contract ID format (should start with C and be 56 characters)';
                 }
@@ -47,26 +46,21 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
         });
 
         if (!contractId) {
-            return; // User cancelled
+            return;
         }
 
-        // Inspect contract to get available functions
         let contractFunctions: ContractFunction[] = [];
         let selectedFunction: ContractFunction | null = null;
         let functionName = '';
 
         if (useLocalCli) {
-            // Try to get contract functions
             const inspector = new ContractInspector(cliPath, source);
             try {
                 contractFunctions = await inspector.getContractFunctions(contractId);
             } catch (error) {
-                // If inspection fails, continue with manual input
-                console.log('Contract inspection failed, using manual input');
             }
         }
 
-        // If we have functions, show a picker
         if (contractFunctions.length > 0) {
             const functionItems = contractFunctions.map(fn => ({
                 label: fn.name,
@@ -81,13 +75,12 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             });
 
             if (!selected) {
-                return; // User cancelled
+                return;
             }
 
             selectedFunction = contractFunctions.find(f => f.name === selected.label) || null;
             functionName = selected.label;
         } else {
-            // Fallback to manual input
             const input = await vscode.window.showInputBox({
                 prompt: 'Enter the function name to call',
                 placeHolder: 'e.g., hello',
@@ -100,23 +93,20 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             });
 
             if (!input) {
-                return; // User cancelled
+                return;
             }
 
             functionName = input;
 
-            // Try to get function help
             if (useLocalCli) {
                 const inspector = new ContractInspector(cliPath, source);
                 selectedFunction = await inspector.getFunctionHelp(contractId, functionName);
             }
         }
 
-        // Collect function arguments based on parameters
         let args: any[] = [];
         
         if (selectedFunction && selectedFunction.parameters.length > 0) {
-            // Build arguments object from parameters
             const argsObj: any = {};
             
             for (const param of selectedFunction.parameters) {
@@ -133,11 +123,10 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                 });
 
                 if (param.required && paramValue === undefined) {
-                    return; // User cancelled required parameter
+                    return;
                 }
 
                 if (paramValue !== undefined && paramValue.trim().length > 0) {
-                    // Try to parse as JSON, otherwise use as string
                     try {
                         argsObj[param.name] = JSON.parse(paramValue);
                     } catch {
@@ -146,10 +135,8 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                 }
             }
 
-            // Convert to array format expected by CLI service
             args = [argsObj];
         } else {
-            // No parameters or couldn't get function info - use manual input
             const argsInput = await vscode.window.showInputBox({
                 prompt: 'Enter function arguments as JSON object (e.g., {"name": "value"})',
                 placeHolder: 'e.g., {"name": "world"}',
@@ -157,7 +144,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             });
 
             if (argsInput === undefined) {
-                return; // User cancelled
+                return;
             }
 
             try {
@@ -174,7 +161,6 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             }
         }
 
-        // Create and show the simulation panel
         const panel = SimulationPanel.createOrShow(context);
         panel.updateResults(
             { success: false, error: 'Running simulation...' },
@@ -183,7 +169,6 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             args
         );
 
-        // Show progress indicator
         await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
@@ -196,17 +181,13 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                 let result;
 
                 if (useLocalCli) {
-                    // Use local CLI
                     progress.report({ increment: 30, message: 'Using Stellar CLI...' });
                     
-                    // Try to find CLI if configured path doesn't work
                     let actualCliPath = cliPath;
                     let cliService = new SorobanCliService(actualCliPath, source);
                     
-                    // Check if CLI is available at configured path
                     let cliAvailable = await cliService.isAvailable();
                     
-                    // If not available and using default, try to auto-detect
                     if (!cliAvailable && cliPath === 'stellar') {
                         progress.report({ increment: 35, message: 'Auto-detecting Stellar CLI...' });
                         const foundPath = await SorobanCliService.findCliPath();
@@ -230,27 +211,33 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     } else {
                         progress.report({ increment: 50, message: 'Executing simulation...' });
                         result = await cliService.simulateTransaction(contractId, functionName, args, network);
+                        
+                        if (sidebarProvider) {
+                            const argsStr = args.length > 0 ? JSON.stringify(args) : '';
+                            sidebarProvider.addCliHistoryEntry('stellar contract invoke', ['--id', contractId, '--source', source, '--network', network, '--', functionName, argsStr].filter(Boolean));
+                        }
                     }
                 } else {
-                    // Use RPC
                     progress.report({ increment: 30, message: 'Connecting to RPC...' });
                     const rpcService = new RpcService(rpcUrl);
                     
                     progress.report({ increment: 50, message: 'Executing simulation...' });
                     result = await rpcService.simulateTransaction(contractId, functionName, args);
+                    
+                    if (sidebarProvider) {
+                        const argsStr = args.length > 0 ? JSON.stringify(args[0]) : '';
+                        sidebarProvider.addCliHistoryEntry('RPC simulateTransaction', [contractId, functionName, argsStr].filter(Boolean));
+                    }
                 }
 
                 progress.report({ increment: 100, message: 'Complete' });
 
-                // Update panel with results
                 panel.updateResults(result, contractId, functionName, args);
 
-                // Update sidebar view
                 if (sidebarProvider) {
                     sidebarProvider.showSimulationResult(contractId, result);
                 }
 
-                // Show notification
                 if (result.success) {
                     vscode.window.showInformationMessage('Simulation completed successfully');
                 } else {

@@ -3,16 +3,16 @@ import { ContractDeployer } from '../services/contractDeployer';
 import { WasmDetector } from '../utils/wasmDetector';
 import { formatError } from '../utils/errorFormatter';
 import { SidebarViewProvider } from '../ui/sidebarView';
+import { getSharedOutputChannel, showSharedOutputChannel } from '../utils/outputChannel';
 
 export async function buildContract(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
     try {
         const config = vscode.workspace.getConfiguration('stellarSuite');
         const cliPath = config.get<string>('cliPath', 'stellar');
 
-        const outputChannel = vscode.window.createOutputChannel('Stellar Suite - Build');
-        outputChannel.show(true);
+        const outputChannel = getSharedOutputChannel();
+        showSharedOutputChannel();
         outputChannel.appendLine('=== Stellar Contract Build ===\n');
-        console.log('[Build] Starting build...');
 
         const selectedContractPath = context.workspaceState.get<string>('selectedContractPath');
         
@@ -39,7 +39,6 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                     }
                 }
 
-                // If no selected path, try to detect
                 if (!contractDir) {
                     progress.report({ increment: 10, message: 'Searching workspace...' });
                     const contractDirs = await WasmDetector.findContractDirectories();
@@ -51,7 +50,6 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                     } else if (contractDirs.length === 1) {
                         contractDir = contractDirs[0];
                     } else {
-                        // Multiple contracts - show picker
                         const selected = await vscode.window.showQuickPick(
                             contractDirs.map(dir => ({
                                 label: require('path').basename(dir),
@@ -74,34 +72,42 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                     return;
                 }
 
-                // Build the contract
                 progress.report({ increment: 30, message: 'Building contract...' });
                 outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
                 outputChannel.appendLine('Running: stellar contract build\n');
 
-                // Create deployer just for build (source/network not needed for build)
                 const deployer = new ContractDeployer(cliPath, 'dev', 'testnet');
                 const buildResult = await deployer.buildContract(contractDir);
+                
+                if (sidebarProvider) {
+                    sidebarProvider.addCliHistoryEntry('stellar contract build', [contractDir]);
+                }
 
                 progress.report({ increment: 90, message: 'Finalizing...' });
 
-                // Display results
                 outputChannel.appendLine('=== Build Result ===');
                 
                 if (buildResult.success) {
-                    outputChannel.appendLine(`✅ Build successful!`);
+                    outputChannel.appendLine('Build successful!');
                     if (buildResult.wasmPath) {
                         outputChannel.appendLine(`WASM file: ${buildResult.wasmPath}`);
                     }
+                    if (buildResult.output) {
+                        outputChannel.appendLine('\n=== Full Build Output ===');
+                        outputChannel.appendLine(buildResult.output);
+                    }
                     vscode.window.showInformationMessage('Contract built successfully!');
                     
-                    // Refresh sidebar
                     if (sidebarProvider) {
                         await sidebarProvider.refresh();
                     }
                 } else {
-                    outputChannel.appendLine(`❌ Build failed!`);
+                    outputChannel.appendLine('Build failed!');
                     outputChannel.appendLine(`Error: ${buildResult.output}`);
+                    if (buildResult.output) {
+                        outputChannel.appendLine('\n=== Full Build Output ===');
+                        outputChannel.appendLine(buildResult.output);
+                    }
                     vscode.window.showErrorMessage(`Build failed: ${buildResult.output}`);
                 }
 
@@ -111,6 +117,5 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
     } catch (error) {
         const formatted = formatError(error, 'Build');
         vscode.window.showErrorMessage(`${formatted.title}: ${formatted.message}`);
-        console.error('[Build] Error:', error);
     }
 }

@@ -69,7 +69,6 @@ export class SorobanCliService {
                 const argObj = args[0];
                 for (const [key, value] of Object.entries(argObj)) {
                     commandParts.push(`--${key}`);
-                    // Convert value to string, handling JSON for complex types
                     if (typeof value === 'object') {
                         commandParts.push(JSON.stringify(value));
                     } else {
@@ -77,9 +76,7 @@ export class SorobanCliService {
                     }
                 }
             } else {
-                // Array format: pass as positional arguments
                 for (const arg of args) {
-                    // Convert argument to string
                     if (typeof arg === 'object') {
                         commandParts.push(JSON.stringify(arg));
                     } else {
@@ -88,23 +85,19 @@ export class SorobanCliService {
                 }
             }
 
-            // Get environment with proper PATH
             const env = getEnvironmentWithPath();
             
-            // Execute the command using execFile with proper argument array
-            // This avoids shell injection and properly handles arguments
             const { stdout, stderr } = await execFileAsync(
-                commandParts[0], // CLI path
-                commandParts.slice(1), // All arguments
+                commandParts[0],
+                commandParts.slice(1),
                 {
                     env: env,
-                    maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-                    timeout: 30000 // 30 second timeout
+                    maxBuffer: 10 * 1024 * 1024,
+                    timeout: 30000
                 }
             );
 
             if (stderr && stderr.trim().length > 0) {
-                // CLI may output warnings to stderr, but if it looks like an error, treat it as such
                 if (stderr.toLowerCase().includes('error') || stderr.toLowerCase().includes('failed')) {
                     return {
                         success: false,
@@ -113,12 +106,8 @@ export class SorobanCliService {
                 }
             }
 
-            // Parse the output from Soroban CLI
-            // The official CLI outputs structured data, often in JSON format
             try {
                 const output = stdout.trim();
-                
-                // Try to parse as JSON first (CLI may output pure JSON)
                 try {
                     const parsed = JSON.parse(output);
                     return {
@@ -130,7 +119,6 @@ export class SorobanCliService {
                         } : undefined
                     };
                 } catch {
-                    // If not pure JSON, try to extract JSON from mixed output
                     const jsonMatch = output.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const parsed = JSON.parse(jsonMatch[0]);
@@ -143,15 +131,12 @@ export class SorobanCliService {
                             } : undefined
                         };
                     }
-
-                    // If no JSON found, return raw output (CLI may output plain text)
                     return {
                         success: true,
                         result: output
                     };
                 }
             } catch (parseError) {
-                // If parsing fails, return raw output
                 return {
                     success: true,
                     result: stdout.trim()
@@ -160,7 +145,6 @@ export class SorobanCliService {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             
-            // Check if it's a "command not found" error
             if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
                 return {
                     success: false,
@@ -175,12 +159,6 @@ export class SorobanCliService {
         }
     }
 
-    /**
-     * Check if Stellar CLI is available.
-     * Uses the official CLI version command.
-     * 
-     * @returns True if CLI is accessible
-     */
     async isAvailable(): Promise<boolean> {
         try {
             const env = getEnvironmentWithPath();
@@ -191,14 +169,9 @@ export class SorobanCliService {
         }
     }
 
-    /**
-     * Try to find Stellar CLI in common installation locations.
-     * 
-     * @returns Path to CLI if found, or null
-     */
     static async findCliPath(): Promise<string | null> {
         const commonPaths = [
-            'stellar', // Try PATH first
+            'stellar',
             path.join(os.homedir(), '.cargo', 'bin', 'stellar'),
             '/usr/local/bin/stellar',
             '/opt/homebrew/bin/stellar',
@@ -209,28 +182,15 @@ export class SorobanCliService {
         for (const cliPath of commonPaths) {
             try {
                 if (cliPath === 'stellar') {
-                    // Use exec for PATH lookup with proper environment
                     await execAsync('stellar --version', { env: env, timeout: 5000 });
                     return 'stellar';
                 } else {
-                    // Use execFile for absolute paths
                     await execFileAsync(cliPath, ['--version'], { env: env, timeout: 5000 });
                     return cliPath;
                 }
             } catch {
-                // Continue to next path
             }
         }
-
         return null;
-    }
-
-    /**
-     * Set the source identity to use for transactions.
-     * 
-     * @param source - Source identity name (e.g., 'dev')
-     */
-    setSource(source: string): void {
-        this.source = source;
     }
 }

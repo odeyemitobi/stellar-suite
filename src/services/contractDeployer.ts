@@ -99,15 +99,8 @@ export class ContractDeployer {
         }
     }
 
-    /**
-     * Deploy a contract from WASM file.
-     * 
-     * @param wasmPath - Path to the compiled WASM file
-     * @returns Deployment result with contract ID and transaction hash
-     */
     async deployContract(wasmPath: string): Promise<DeploymentResult> {
         try {
-            // Verify WASM file exists
             if (!fs.existsSync(wasmPath)) {
                 return {
                     success: false,
@@ -115,10 +108,8 @@ export class ContractDeployer {
                 };
             }
 
-            // Get environment with proper PATH
             const env = getEnvironmentWithPath();
             
-            // Run stellar contract deploy
             const { stdout, stderr } = await execFileAsync(
                 this.cliPath,
                 [
@@ -131,16 +122,12 @@ export class ContractDeployer {
                 {
                     env: env,
                     maxBuffer: 10 * 1024 * 1024,
-                    timeout: 60000 // 1 minute for deployment
+                    timeout: 60000
                 }
             );
 
             const output = stdout + stderr;
             
-            // Parse output to extract Contract ID and transaction hash
-            // Typical output format:
-            // "Contract ID: C..."
-            // "Transaction hash: ..."
             const contractIdMatch = output.match(/Contract\s+ID[:\s]+(C[A-Z0-9]{55})/i);
             const txHashMatch = output.match(/Transaction\s+hash[:\s]+([a-f0-9]{64})/i);
 
@@ -148,7 +135,6 @@ export class ContractDeployer {
             const transactionHash = txHashMatch ? txHashMatch[1] : undefined;
 
             if (!contractId) {
-                // Try alternative patterns
                 const altMatch = output.match(/(C[A-Z0-9]{55})/);
                 if (altMatch) {
                     return {
@@ -174,28 +160,25 @@ export class ContractDeployer {
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            
-            // Try to extract error details from stderr if available
             let errorOutput = errorMessage;
+            let fullOutput = errorMessage;
+            
             if (error instanceof Error && 'stderr' in error) {
-                errorOutput = (error as any).stderr || errorMessage;
+                const stderr = (error as any).stderr || '';
+                const stdout = (error as any).stdout || '';
+                fullOutput = stdout + stderr;
+                errorOutput = stderr || errorMessage;
             }
 
             return {
                 success: false,
-                error: errorOutput
+                error: errorOutput,
+                deployOutput: fullOutput
             };
         }
     }
 
-    /**
-     * Build and deploy a contract in one step.
-     * 
-     * @param contractPath - Path to contract directory
-     * @returns Deployment result
-     */
     async buildAndDeploy(contractPath: string): Promise<DeploymentResult> {
-        // First build
         const buildResult = await this.buildContract(contractPath);
         
         if (!buildResult.success) {
@@ -214,19 +197,12 @@ export class ContractDeployer {
             };
         }
 
-        // Then deploy
         const deployResult = await this.deployContract(buildResult.wasmPath);
         deployResult.buildOutput = buildResult.output;
 
         return deployResult;
     }
 
-    /**
-     * Deploy a contract directly from WASM file (skip build).
-     * 
-     * @param wasmPath - Path to WASM file
-     * @returns Deployment result
-     */
     async deployFromWasm(wasmPath: string): Promise<DeploymentResult> {
         return this.deployContract(wasmPath);
     }

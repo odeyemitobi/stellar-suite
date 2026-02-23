@@ -10,33 +10,19 @@ export interface SimulationResult {
     };
 }
 
-/**
- * Service for interacting with Stellar RPC endpoint to simulate transactions.
- */
 export class RpcService {
     private rpcUrl: string;
 
     constructor(rpcUrl: string) {
-        // Ensure URL ends with / for proper path joining
         this.rpcUrl = rpcUrl.endsWith('/') ? rpcUrl.slice(0, -1) : rpcUrl;
     }
 
-    /**
-     * Simulate a Soroban contract function call using RPC.
-     * 
-     * @param contractId - Contract ID (address)
-     * @param functionName - Name of the function to call
-     * @param args - Function arguments as array
-     * @returns Simulation result with return value and resource usage
-     */
     async simulateTransaction(
         contractId: string,
         functionName: string,
         args: any[]
     ): Promise<SimulationResult> {
         try {
-            // Build the RPC request
-            // Using the simulateTransaction RPC method
             const requestBody = {
                 jsonrpc: '2.0',
                 id: 1,
@@ -46,22 +32,19 @@ export class RpcService {
                         contractId,
                         functionName,
                         args: args.map(arg => ({
-                            // Convert arguments to Soroban SCVal format
-                            // For MVP, we'll send as JSON and let RPC handle conversion
                             value: arg
                         }))
                     }
                 }
             };
 
-            // Make the RPC call
             const response = await fetch(`${this.rpcUrl}/rpc`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestBody),
-                signal: AbortSignal.timeout(30000) // 30 second timeout
+                signal: AbortSignal.timeout(30000)
             });
 
             if (!response.ok) {
@@ -73,7 +56,6 @@ export class RpcService {
 
             const data: any = await response.json();
 
-            // Handle RPC error response
             if (data.error) {
                 return {
                     success: false,
@@ -81,7 +63,6 @@ export class RpcService {
                 };
             }
 
-            // Extract result from RPC response
             const result = data.result || data;
             
             return {
@@ -92,7 +73,6 @@ export class RpcService {
         } catch (error) {
             const formatted = formatError(error, 'RPC');
             
-            // Handle network errors
             if (error instanceof TypeError && error.message.includes('fetch')) {
                 return {
                     success: false,
@@ -114,11 +94,6 @@ export class RpcService {
         }
     }
 
-    /**
-     * Check if RPC endpoint is reachable.
-     * 
-     * @returns True if endpoint is accessible
-     */
     async isAvailable(): Promise<boolean> {
         try {
             const response = await fetch(`${this.rpcUrl}/health`, {
@@ -127,7 +102,6 @@ export class RpcService {
             });
             return response.ok;
         } catch {
-            // If health endpoint doesn't exist, try a simple RPC call
             try {
                 const response = await fetch(`${this.rpcUrl}/rpc`, {
                     method: 'POST',

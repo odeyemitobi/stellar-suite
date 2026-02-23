@@ -1,9 +1,6 @@
 import * as vscode from 'vscode';
 import { SimulationResult } from '../services/sorobanCliService';
 
-/**
- * Manages the WebView panel that displays simulation results.
- */
 export class SimulationPanel {
     private static currentPanel: SimulationPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
@@ -12,14 +9,10 @@ export class SimulationPanel {
     private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
         this._panel = panel;
 
-        // Set the webview's initial html content
         this._update();
 
-        // Listen for when the panel is disposed
-        // This happens when the user closes the panel or when the panel is closed programmatically
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
-        // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
             message => {
                 switch (message.command) {
@@ -33,21 +26,16 @@ export class SimulationPanel {
         );
     }
 
-    /**
-     * Create or reveal the simulation panel.
-     */
     public static createOrShow(context: vscode.ExtensionContext): SimulationPanel {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
 
-        // If we already have a panel, show it
         if (SimulationPanel.currentPanel) {
             SimulationPanel.currentPanel._panel.reveal(column);
             return SimulationPanel.currentPanel;
         }
 
-        // Otherwise, create a new panel
         const panel = vscode.window.createWebviewPanel(
             'simulationPanel',
             'Soroban Simulation Result',
@@ -62,20 +50,13 @@ export class SimulationPanel {
         return SimulationPanel.currentPanel;
     }
 
-    /**
-     * Update the panel content with simulation results.
-     */
     public updateResults(result: SimulationResult, contractId: string, functionName: string, args: any[]): void {
         this._panel.webview.html = this._getHtmlForResults(result, contractId, functionName, args);
     }
 
-    /**
-     * Dispose of the panel and clean up resources.
-     */
     public dispose() {
         SimulationPanel.currentPanel = undefined;
 
-        // Clean up our resources
         this._panel.dispose();
 
         while (this._disposables.length) {
@@ -139,7 +120,7 @@ export class SimulationPanel {
         };
 
         const statusClass = result.success ? 'success' : 'error';
-        const statusIcon = result.success ? '✓' : '✗';
+        const statusIcon = result.success ? '[OK]' : '[FAIL]';
         const statusText = result.success ? 'Success' : 'Failed';
 
         const resourceUsageHtml = result.resourceUsage

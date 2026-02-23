@@ -1,24 +1,23 @@
-// ============================================================
-// src/extension.ts
-// Extension entry point — activates commands, sidebar, and watchers.
-// ============================================================
-
 import * as vscode from 'vscode';
 import { simulateTransaction } from './commands/simulateTransaction';
 import { deployContract } from './commands/deployContract';
 import { buildContract } from './commands/buildContract';
-import { registerGroupCommands } from './commands/groupCommands';
 import { SidebarViewProvider } from './ui/sidebarView';
+import { getSharedOutputChannel } from './utils/outputChannel';
 import { ContractGroupService } from './services/contractGroupService';
 import { registerCustomContextAction } from './services/contextMenuService';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 let groupService: ContractGroupService | undefined;
 
+function registerGroupCommands(context: vscode.ExtensionContext, groupService: ContractGroupService) {
+    // Implementation to be added from the contract group service
+    // This would include commands for managing contract groups
+    return groupService;
+}
+
 export function activate(context: vscode.ExtensionContext) {
-    const outputChannel = vscode.window.createOutputChannel('Stellar Suite');
-    outputChannel.appendLine('[Extension] Activating Stellar Suite extension...');
-    console.log('[Stellar Suite] Extension activating...');
+    const outputChannel = getSharedOutputChannel();
 
     try {
         // Initialize contract group service
@@ -33,27 +32,21 @@ export function activate(context: vscode.ExtensionContext) {
 
         sidebarProvider = new SidebarViewProvider(context.extensionUri, context, groupService);
         context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(
-                SidebarViewProvider.viewType,
-                sidebarProvider
-            )
+            vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewType, sidebarProvider)
         );
-        outputChannel.appendLine('[Extension] Sidebar view provider registered');
 
-        // ── Core commands ─────────────────────────────────────
         const simulateCommand = vscode.commands.registerCommand(
             'stellarSuite.simulateTransaction',
-            () => simulateTransaction(context, sidebarProvider)
+            () => {
+                return simulateTransaction(context, sidebarProvider);
+            }
         );
 
         const deployCommand = vscode.commands.registerCommand(
             'stellarSuite.deployContract',
-            () => deployContract(context, sidebarProvider)
-        );
-
-        const buildCommand = vscode.commands.registerCommand(
-            'stellarSuite.buildContract',
-            () => buildContract(context, sidebarProvider)
+            () => {
+                return deployContract(context, sidebarProvider);
+            }
         );
 
         const refreshCommand = vscode.commands.registerCommand(
@@ -61,92 +54,59 @@ export function activate(context: vscode.ExtensionContext) {
             () => {
                 if (sidebarProvider) {
                     sidebarProvider.refresh();
-                } else {
-                    outputChannel.appendLine('[Extension] WARNING: sidebarProvider not available');
                 }
             }
         );
 
         const deployFromSidebarCommand = vscode.commands.registerCommand(
             'stellarSuite.deployFromSidebar',
-            () => deployContract(context, sidebarProvider)
+            () => {
+                return deployContract(context, sidebarProvider);
+            }
         );
 
         const simulateFromSidebarCommand = vscode.commands.registerCommand(
             'stellarSuite.simulateFromSidebar',
-            () => simulateTransaction(context, sidebarProvider)
-        );
-
-        // ── Context menu commands (callable from Command Palette) ──
-        //
-        // These mirror the context menu actions so power users can
-        // also trigger them via Ctrl+Shift+P.
-
-        const copyContractIdCommand = vscode.commands.registerCommand(
-            'stellarSuite.copyContractId',
-            async () => {
-                // Prompt for contract ID if invoked from palette (no webview context)
-                const id = await vscode.window.showInputBox({
-                    title: 'Copy Contract ID',
-                    prompt: 'Enter the contract ID to copy to clipboard',
-                });
-                if (id) {
-                    await vscode.env.clipboard.writeText(id);
-                    vscode.window.showInformationMessage('Contract ID copied to clipboard.');
-                }
+            () => {
+                return simulateTransaction(context, sidebarProvider);
             }
         );
 
-        outputChannel.appendLine('[Extension] All commands registered');
+        const buildCommand = vscode.commands.registerCommand(
+            'stellarSuite.buildContract',
+            () => {
+                return buildContract(context, sidebarProvider);
+            }
+        );
 
-        // ── File watcher ──────────────────────────────────────
         const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
-        const refreshOnChange = () => sidebarProvider?.refresh();
-        watcher.onDidChange(refreshOnChange);
-        watcher.onDidCreate(refreshOnChange);
-        watcher.onDidDelete(refreshOnChange);
-
-        // ── Example: registering a custom context action ──────
-        // This demonstrates the extensibility API. Other extensions
-        // or future features can add their own sidebar context actions.
-        //
-        // const customActionDisposable = registerCustomContextAction({
-        //     action: {
-        //         id: 'myCustomAction',
-        //         label: 'Run Custom Script',
-        //         icon: 'terminal',
-        //         enabled: true,
-        //         separatorBefore: true,
-        //     },
-        //     insertBefore: 'delete',
-        //     handler: async (contract, ctx) => {
-        //         vscode.window.showInformationMessage(`Custom action on ${contract.name}`);
-        //         return { type: 'success', message: 'Custom action complete.' };
-        //     },
-        // });
-        // context.subscriptions.push(customActionDisposable);
+        watcher.onDidChange(() => {
+            if (sidebarProvider) {
+                sidebarProvider.refresh();
+            }
+        });
+        watcher.onDidCreate(() => {
+            if (sidebarProvider) {
+                sidebarProvider.refresh();
+            }
+        });
+        watcher.onDidDelete(() => {
+            if (sidebarProvider) {
+                sidebarProvider.refresh();
+            }
+        });
 
         context.subscriptions.push(
             simulateCommand,
             deployCommand,
-            buildCommand,
             refreshCommand,
             deployFromSidebarCommand,
             simulateFromSidebarCommand,
-            copyContractIdCommand,
+            buildCommand,
             watcher
         );
-
-        outputChannel.appendLine('[Extension] Extension activation complete');
-        console.log('[Stellar Suite] Extension activation complete');
-
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        outputChannel.appendLine(`[Extension] ERROR during activation: ${errorMsg}`);
-        if (error instanceof Error && error.stack) {
-            outputChannel.appendLine(`[Extension] Stack: ${error.stack}`);
-        }
-        console.error('[Stellar Suite] Activation error:', error);
         vscode.window.showErrorMessage(`Stellar Suite activation failed: ${errorMsg}`);
     }
 }

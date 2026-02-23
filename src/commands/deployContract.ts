@@ -4,6 +4,7 @@ import { WasmDetector } from '../utils/wasmDetector';
 import { formatError } from '../utils/errorFormatter';
 import { SidebarViewProvider } from '../ui/sidebarView';
 import * as path from 'path';
+import { getSharedOutputChannel, showSharedOutputChannel } from '../utils/outputChannel';
 
 export async function deployContract(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
     try {
@@ -12,10 +13,9 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
         const source = config.get<string>('source', 'dev');
         const network = config.get<string>('network', 'testnet') || 'testnet';
 
-        const outputChannel = vscode.window.createOutputChannel('Stellar Suite - Deployment');
-        outputChannel.show(true);
+        const outputChannel = getSharedOutputChannel();
+        showSharedOutputChannel();
         outputChannel.appendLine('=== Stellar Contract Deployment ===\n');
-        console.log('[Deploy] Starting deployment...');
 
         const selectedContractPath = context.workspaceState.get<string>('selectedContractPath');
         if (selectedContractPath) {
@@ -42,7 +42,6 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     if (fs.existsSync(selectedContractPath)) {
                         const stats = fs.statSync(selectedContractPath);
                         if (stats.isFile() && selectedContractPath.endsWith('.wasm')) {
-                            // It's a WASM file
                             wasmPath = selectedContractPath;
                             deployFromWasm = true;
                             outputChannel.appendLine(`Using selected WASM file: ${wasmPath}`);
@@ -81,89 +80,87 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     outputChannel.appendLine(`Found ${wasmFiles.length} WASM file(s) in workspace`);
 
                     if (contractDirs.length > 0) {
-                    if (contractDirs.length === 1) {
-                        contractDir = contractDirs[0];
-                        outputChannel.appendLine(`Using contract directory: ${contractDir}`);
-                    } else {
-                        const fs = require('fs');
-                        const selected = await vscode.window.showQuickPick(
-                            contractDirs.map(dir => {
-                                const wasm = WasmDetector.getExpectedWasmPath(dir);
-                                const hasWasm = wasm && fs.existsSync(wasm);
-                                return {
-                                    label: path.basename(dir),
-                                    description: dir,
-                                    detail: hasWasm ? '✓ WASM found' : '⚠ Needs build',
-                                    value: dir
-                                };
-                            }),
-                            {
-                                placeHolder: 'Multiple contracts found. Select one to deploy:'
-                            }
-                        );
-                        if (!selected) {
-                            return;
-                        }
-                        contractDir = selected.value;
-                        outputChannel.appendLine(`Selected contract directory: ${contractDir}`);
-                    }
-                    
-                    if (contractDir) {
-                        const expectedWasm = WasmDetector.getExpectedWasmPath(contractDir);
-                        const fs = require('fs');
-                        if (expectedWasm && fs.existsSync(expectedWasm)) {
-                            const useExisting = await vscode.window.showQuickPick(
-                                [
-                                    { label: 'Deploy existing WASM', value: 'wasm', detail: expectedWasm },
-                                    { label: 'Build and deploy', value: 'build' }
-                                ],
+                        if (contractDirs.length === 1) {
+                            contractDir = contractDirs[0];
+                            outputChannel.appendLine(`Using contract directory: ${contractDir}`);
+                        } else {
+                            const fs = require('fs');
+                            const selected = await vscode.window.showQuickPick(
+                                contractDirs.map(dir => {
+                                    const wasm = WasmDetector.getExpectedWasmPath(dir);
+                                    const hasWasm = wasm && fs.existsSync(wasm);
+                                    return {
+                                        label: path.basename(dir),
+                                        description: dir,
+                                        detail: hasWasm ? 'WASM found' : 'Needs build',
+                                        value: dir
+                                    };
+                                }),
                                 {
-                                    placeHolder: 'WASM file found. Deploy existing or build first?'
+                                    placeHolder: 'Multiple contracts found. Select one to deploy:'
                                 }
                             );
-
-                            if (!useExisting) {
+                            if (!selected) {
                                 return;
                             }
+                            contractDir = selected.value;
+                            outputChannel.appendLine(`Selected contract directory: ${contractDir}`);
+                        }
+                    
+                        if (contractDir) {
+                            const expectedWasm = WasmDetector.getExpectedWasmPath(contractDir);
+                            const fs = require('fs');
+                            if (expectedWasm && fs.existsSync(expectedWasm)) {
+                                const useExisting = await vscode.window.showQuickPick(
+                                    [
+                                        { label: 'Deploy existing WASM', value: 'wasm', detail: expectedWasm },
+                                        { label: 'Build and deploy', value: 'build' }
+                                    ],
+                                    {
+                                        placeHolder: 'WASM file found. Deploy existing or build first?'
+                                    }
+                                );
 
-                            if (useExisting.value === 'wasm') {
-                                wasmPath = expectedWasm;
-                                deployFromWasm = true;
+                                if (!useExisting) {
+                                    return;
+                                }
+
+                                if (useExisting.value === 'wasm') {
+                                    wasmPath = expectedWasm;
+                                    deployFromWasm = true;
+                                }
                             }
                         }
-                    }
-                } else if (wasmFiles.length > 0) {
-                    if (wasmFiles.length === 1) {
-                        wasmPath = wasmFiles[0];
-                        deployFromWasm = true;
-                        outputChannel.appendLine(`Using WASM file: ${wasmPath}`);
-                    } else {
-                        // Multiple WASM files - show picker sorted by modification time
-                        const fs = require('fs');
-                        const wasmWithStats = wasmFiles.map(file => ({
-                            path: file,
-                            mtime: fs.statSync(file).mtime.getTime()
-                        })).sort((a, b) => b.mtime - a.mtime);
+                    } else if (wasmFiles.length > 0) {
+                        if (wasmFiles.length === 1) {
+                            wasmPath = wasmFiles[0];
+                            deployFromWasm = true;
+                            outputChannel.appendLine(`Using WASM file: ${wasmPath}`);
+                        } else {
+                            const fs = require('fs');
+                            const wasmWithStats = wasmFiles.map(file => ({
+                                path: file,
+                                mtime: fs.statSync(file).mtime.getTime()
+                            })).sort((a, b) => b.mtime - a.mtime);
 
-                        const selected = await vscode.window.showQuickPick(
-                            wasmWithStats.map(({ path: filePath }) => ({
-                                label: path.basename(filePath),
-                                description: path.dirname(filePath),
-                                value: filePath
-                            })),
-                            {
-                                placeHolder: 'Multiple WASM files found. Select one to deploy:'
+                            const selected = await vscode.window.showQuickPick(
+                                wasmWithStats.map(({ path: filePath }) => ({
+                                    label: path.basename(filePath),
+                                    description: path.dirname(filePath),
+                                    value: filePath
+                                })),
+                                {
+                                    placeHolder: 'Multiple WASM files found. Select one to deploy:'
+                                }
+                            );
+                            if (!selected) {
+                                return;
                             }
-                        );
-                        if (!selected) {
-                            return;
+                            wasmPath = selected.value;
+                            deployFromWasm = true;
+                            outputChannel.appendLine(`Selected WASM file: ${wasmPath}`);
                         }
-                        wasmPath = selected.value;
-                        deployFromWasm = true;
-                        outputChannel.appendLine(`Selected WASM file: ${wasmPath}`);
-                    }
                     } else {
-                        // Fallback: try active editor (if any)
                         contractDir = WasmDetector.getActiveContractDirectory();
                         if (contractDir) {
                             outputChannel.appendLine(`Found contract from active file: ${contractDir}`);
@@ -171,7 +168,6 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     }
                 }
 
-                // If still no contract found, ask user
                 if (!contractDir && !wasmPath) {
                     const action = await vscode.window.showQuickPick(
                         [
@@ -225,27 +221,51 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     return;
                 }
 
-                // Create deployer
                 const deployer = new ContractDeployer(cliPath, source, network);
 
                 let result;
 
                 if (deployFromWasm && wasmPath) {
-                    // Deploy directly from WASM
                     progress.report({ increment: 30, message: 'Deploying from WASM...' });
                     outputChannel.appendLine(`\nDeploying contract from: ${wasmPath}`);
+                    outputChannel.appendLine('Running: stellar contract deploy\n');
                     result = await deployer.deployFromWasm(wasmPath);
+                    
+                    if (sidebarProvider) {
+                        sidebarProvider.addCliHistoryEntry('stellar contract deploy', ['--wasm', wasmPath, '--source', source, '--network', network]);
+                    }
+                    
+                    if (result.deployOutput) {
+                        outputChannel.appendLine('=== Deployment Output ===');
+                        outputChannel.appendLine(result.deployOutput);
+                        outputChannel.appendLine('');
+                    }
                 } else if (contractDir) {
-                    // Build and deploy
                     progress.report({ increment: 10, message: 'Building contract...' });
                     outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
                     outputChannel.appendLine('Running: stellar contract build\n');
                     
                     result = await deployer.buildAndDeploy(contractDir);
                     
+                    if (sidebarProvider) {
+                        sidebarProvider.addCliHistoryEntry('stellar contract build', [contractDir]);
+                        if (result.success && result.contractId) {
+                            const wasmPath = WasmDetector.getExpectedWasmPath(contractDir);
+                            const fs = require('fs');
+                            const actualWasmPath = wasmPath && fs.existsSync(wasmPath) ? wasmPath : 'unknown';
+                            sidebarProvider.addCliHistoryEntry('stellar contract deploy', ['--wasm', actualWasmPath, '--source', source, '--network', network]);
+                        }
+                    }
+                    
                     if (result.buildOutput) {
                         outputChannel.appendLine('=== Build Output ===');
                         outputChannel.appendLine(result.buildOutput);
+                        outputChannel.appendLine('');
+                    }
+                    
+                    if (result.deployOutput) {
+                        outputChannel.appendLine('=== Deployment Output ===');
+                        outputChannel.appendLine(result.deployOutput);
                         outputChannel.appendLine('');
                     }
                 } else {
@@ -255,11 +275,10 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
 
                 progress.report({ increment: 90, message: 'Finalizing...' });
 
-                // Display results
                 outputChannel.appendLine('=== Deployment Result ===');
                 
                 if (result.success) {
-                    outputChannel.appendLine(`✅ Deployment successful!`);
+                    outputChannel.appendLine('Deployment successful!');
                     if (result.contractId) {
                         outputChannel.appendLine(`Contract ID: ${result.contractId}`);
                     }
@@ -267,42 +286,36 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                         outputChannel.appendLine(`Transaction Hash: ${result.transactionHash}`);
                     }
 
-                    // Store contract ID in workspace state
                     if (result.contractId) {
-                        const deploymentInfo = {
+                        const contractName = contractDir ? path.basename(contractDir) : path.basename(wasmPath || 'unknown');
+                        const deploymentRecord = {
                             contractId: result.contractId,
-                            transactionHash: result.transactionHash,
-                            timestamp: new Date().toISOString(),
+                            contractName: contractName,
+                            deployedAt: new Date().toISOString(),
                             network,
                             source
                         };
                         
                         context.workspaceState.update('lastContractId', result.contractId);
-                        context.workspaceState.update('lastDeployment', deploymentInfo);
 
-                        // Update sidebar view
                         if (sidebarProvider) {
-                            sidebarProvider.showDeploymentResult(deploymentInfo);
+                            sidebarProvider.showDeploymentResult(deploymentRecord);
                         }
 
-                        // Show success notification with contract ID
-                        const action = await vscode.window.showInformationMessage(
-                            `Contract deployed successfully!\nContract ID: ${result.contractId}`,
-                            'Copy Contract ID',
-                            'Use for Simulation'
+                        vscode.window.showInformationMessage(
+                            `Contract deployed successfully! Contract ID: ${result.contractId}`
                         );
-
-                        if (action === 'Copy Contract ID' && result.contractId) {
-                            await vscode.env.clipboard.writeText(result.contractId);
-                            vscode.window.showInformationMessage('Contract ID copied to clipboard');
-                        } else if (action === 'Use for Simulation') {
-                            // Could trigger simulation command here
-                            vscode.commands.executeCommand('stellarSuite.simulateTransaction');
-                        }
+                        
+                        await vscode.env.clipboard.writeText(result.contractId);
                     }
                 } else {
-                    outputChannel.appendLine(`❌ Deployment failed!`);
+                    outputChannel.appendLine('Deployment failed!');
                     outputChannel.appendLine(`Error: ${result.error || 'Unknown error'}`);
+                    
+                    if (result.buildOutput) {
+                        outputChannel.appendLine('\n=== Build Output ===');
+                        outputChannel.appendLine(result.buildOutput);
+                    }
                     
                     if (result.deployOutput) {
                         outputChannel.appendLine('\n=== Deployment Output ===');

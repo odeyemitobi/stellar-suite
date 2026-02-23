@@ -57,6 +57,21 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "stellarSuite.clearSimulationCache",
+        "title": "Stellar Suite: Clear Simulation Cache",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "stellarSuite.showSimulationCacheStats",
+        "title": "Stellar Suite: Simulation Cache Stats",
+        "icon": "$(info)"
+      },
+      {
+        "command": "stellarSuite.deployBatch",
+        "title": "Stellar Suite: Deploy Batch",
+        "icon": "$(cloud-upload)"
+      },
+      {
         "command": "stellarSuite.deployFromSidebar",
         "title": "Deploy Contract",
         "icon": "$(cloud-upload)"
@@ -69,6 +84,202 @@
       {
         "command": "stellarSuite.buildContract",
         "title": "Stellar Suite: Build Contract"
+      },
+      {
+        "command": "stellarSuite.configureCli",
+        "title": "Stellar Suite: Configure CLI"
+      },
+      {
+        "command": "stellarSuite.showSimulationHistory",
+        "title": "Stellar Suite: Show Simulation History"
+      },
+      {
+        "command": "stellarSuite.clearSimulationHistory",
+        "title": "Stellar Suite: Clear Simulation History"
+      },
+      {
+        "command": "stellarSuite.exportSimulationHistory",
+        "title": "Stellar Suite: Export Simulation History"
+      },
+      {
+        "command": "stellarSuite.importSimulationHistory",
+        "title": "Stellar Suite: Import Simulation History"
+      },
+      {
+        "command": "stellarSuite.searchSimulationHistory",
+        "title": "Stellar Suite: Search Simulation History"
+      },
+      {
+        "command": "stellarSuite.showCompilationStatus",
+        "title": "Stellar Suite: Show Compilation Status"
+      },
+      {
+        "command": "stellarSuite.createBackup",
+        "title": "Stellar Suite: Create State Backup"
+      },
+      {
+        "command": "stellarSuite.restoreBackup",
+        "title": "Stellar Suite: Restore State from Backup"
+      },
+      {
+        "command": "stellarSuite.showBackupHistory",
+        "title": "Stellar Suite: Show Backup History"
+      },
+      {
+        "command": "stellarSuite.deleteBackup",
+        "title": "Stellar Suite: Delete Backup"
+      },
+      {
+        "command": "stellarSuite.validateBackups",
+        "title": "Stellar Suite: Validate Backups"
+      },
+      {
+        "command": "stellarSuite.clearAllBackups",
+        "title": "Stellar Suite: Clear All Backups"
+      },
+      {
+        "command": "stellarSuite.exportBackups",
+        "title": "Stellar Suite: Export Backups"
+      },
+      {
+        "command": "stellarSuite.importBackups",
+        "title": "Stellar Suite: Import Backups"
+      },
+      {
+        "command": "stellarSuite.replaySimulation",
+        "title": "Stellar Suite: Replay Simulation"
+      },
+      {
+        "command": "stellarSuite.replayWithModifications",
+        "title": "Stellar Suite: Replay Simulation with Modifications"
+      },
+      {
+        "command": "stellarSuite.batchReplaySimulations",
+        "title": "Stellar Suite: Batch Replay Simulations"
+      },
+      {
+        "command": "stellarSuite.exportReplayResults",
+        "title": "Stellar Suite: Export Replay Results"
+      },
+      {
+        "command": "stellarSuite.compareSimulations",
+        "title": "Stellar Suite: Compare Simulations"
+      },
+      {
+        "command": "stellarSuite.compareSelected",
+        "title": "Stellar Suite: Compare Selected Simulations"
+      },
+      {
+        "command": "stellarSuite.compareLastN",
+        "title": "Stellar Suite: Compare Last N Simulations"
+      },
+      {
+        "command": "stellarSuite.compareSameContract",
+        "title": "Stellar Suite: Compare Simulations (Same Contract)"
+      },
+      {
+        "command": "stellarSuite.compareSameFunction",
+        "title": "Stellar Suite: Compare Simulations (Same Function)"
+      },
+      {
+        "command": "stellarSuite.showSimulationDiff",
+        "title": "Stellar Suite: Show Simulation Diff"
+      },
+      {
+        "command": "stellarSuite.compareWithPrevious",
+        "title": "Stellar Suite: Compare With Previous Simulation"
+      },
+      {
+        "command": "stellarSuite.compareTwoSimulations",
+        "title": "Stellar Suite: Compare Two Simulations"
+      },
+      {
+        "command": "stellarSuite.compareLatestWithAny",
+        "title": "Stellar Suite: Compare Latest With Any"
+      },
+      {
+        "command": "stellarSuite.showResourceProfile",
+        "title": "Stellar Suite: Show Resource Profile"
+      },
+      {
+        "command": "stellarSuite.compareResourceProfiles",
+        "title": "Stellar Suite: Compare Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.exportResourceProfiles",
+        "title": "Stellar Suite: Export Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.importResourceProfiles",
+        "title": "Stellar Suite: Import Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.showResourceStats",
+        "title": "Stellar Suite: Show Resource Statistics"
+      },
+      {
+        "command": "stellarSuite.clearResourceProfiles",
+        "title": "Stellar Suite: Clear Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.manageRpcAuth",
+        "title": "Stellar Suite: Manage RPC Authentication"
+      },
+      {
+        "command": "stellarSuite.manageEnvVariables",
+        "title": "Stellar Suite: Manage Environment Variables"
+      },
+      {
+        "command": "stellarSuite.checkCliVersion",
+        "title": "Stellar Suite: Check CLI Version"
+      },
+      {
+        "command": "stellarSuite.openNotificationPreferences",
+        "title": "Stellar Suite: Open Notification Preferences"
+      },
+      {
+        "command": "stellarSuite.generateAbi",
+        "title": "Stellar Suite: Generate Contract ABI"
+      },
+      {
+        "command": "stellarSuite.exportAbi",
+        "title": "Stellar Suite: Export Contract ABI"
+      },
+      {
+        "command": "stellarSuite.importAbi",
+        "title": "Stellar Suite: Import Contract ABI"
+      },
+      {
+        "command": "stellarSuite.showAbiDetails",
+        "title": "Stellar Suite: Show ABI Details"
+      },
+      {
+        "command": "stellarSuite.parseContractSource",
+        "title": "Stellar Suite: Parse Contract Source Code"
+      },
+      {
+        "command": "stellarSuite.showRpcHealth",
+        "title": "Stellar Suite: Show RPC Health"
+      },
+      {
+        "command": "stellarSuite.checkRpcHealth",
+        "title": "Stellar Suite: Check RPC Health"
+      },
+      {
+        "command": "stellarSuite.viewRpcHistory",
+        "title": "Stellar Suite: View RPC History"
+      },
+      {
+        "command": "stellarSuite.switchRpcEndpoint",
+        "title": "Stellar Suite: Switch RPC Endpoint"
+      },
+      {
+        "command": "stellarSuite.viewCircuitBreakerStatus",
+        "title": "Stellar Suite: View Circuit Breaker Status"
+      },
+      {
+        "command": "stellarSuite.resetCircuitBreaker",
+        "title": "Stellar Suite: Reset Circuit Breaker"
       }
     ],
     "menus": {
@@ -92,6 +303,32 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "stellarSuite.buildContract",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.deployContract",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.simulateTransaction",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.refreshContracts",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      }
+    ],
     "configuration": {
       "title": "Stellar Suite",
       "properties": {
@@ -99,6 +336,40 @@
           "type": "string",
           "default": "https://soroban-testnet.stellar.org:443",
           "description": "Stellar RPC endpoint URL for transaction simulation"
+        },
+        "stellarSuite.simulationCacheEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable caching for simulation results."
+        },
+        "stellarSuite.simulationCacheTtlSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "description": "Simulation cache TTL in seconds. 0 disables caching via immediate expiry."
+        },
+        "stellarSuite.simulationCacheMaxEntries": {
+          "type": "number",
+          "default": 200,
+          "minimum": 0,
+          "description": "Maximum number of cached simulation results. 0 disables caching."
+        },
+        "stellarSuite.rpcEndpoints": {
+          "type": "array",
+          "default": [
+            {
+              "url": "https://soroban-testnet.stellar.org:443",
+              "priority": 0,
+              "enabled": true,
+              "name": "Default Testnet"
+            }
+          ],
+          "description": "List of Stellar RPC endpoints for fallback and health monitoring."
+        },
+        "stellarSuite.automaticFailover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically failover to the next healthy RPC endpoint if the current one fails."
         },
         "stellarSuite.useLocalCli": {
           "type": "boolean",
@@ -119,6 +390,154 @@
           "type": "string",
           "default": "testnet",
           "description": "Network to use for deployments and invocations (testnet, mainnet, etc.)"
+        },
+        "stellarSuite.rpc.rateLimit.maxRetries": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum number of times to retry an RPC request after hitting a rate limit."
+        },
+        "stellarSuite.rpc.rateLimit.initialBackoffMs": {
+          "type": "number",
+          "default": 1000,
+          "description": "Initial backoff time (in milliseconds) before the first retry."
+        },
+        "stellarSuite.rpc.rateLimit.maxBackoffMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "Maximum backoff time (in milliseconds) when rate-limited."
+        },
+        "stellarSuite.keyboard.showHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show keyboard shortcut hints on contract cards in the sidebar."
+        },
+        "stellarSuite.signing.defaultMethod": {
+          "type": "string",
+          "enum": [
+            "interactive",
+            "keypairFile",
+            "storedKeypair",
+            "hardwareWallet",
+            "sourceAccount"
+          ],
+          "default": "interactive",
+          "description": "Default signing method for deployment transactions."
+        },
+        "stellarSuite.signing.requireValidatedSignature": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require successful signature validation before deployment is submitted."
+        },
+        "stellarSuite.signing.enableSecureKeyStorage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow storing deployment keypairs in VS Code SecretStorage."
+        },
+        "stellarSuite.minimumCliVersion": {
+          "type": "string",
+          "default": "21.0.0",
+          "description": "Minimum required Stellar CLI version"
+        },
+        "stellarSuite.cliVersionCheck.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic CLI version detection and compatibility checks"
+        },
+        "stellarSuite.cliVersionCheck.intervalMinutes": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "description": "How often to re-check CLI version (0 = only on activation)"
+        },
+        "stellarSuite.deployment.retry.maxAttempts": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Maximum number of deployment attempts (initial attempt + retries)."
+        },
+        "stellarSuite.deployment.retry.initialDelayMs": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 100,
+          "description": "Initial backoff delay in milliseconds before the first retry."
+        },
+        "stellarSuite.deployment.retry.maxDelayMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "Maximum backoff delay in milliseconds between retry attempts."
+        },
+        "stellarSuite.deployment.retry.backoffMultiplier": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "description": "Exponential backoff multiplier applied after each failed attempt."
+        },
+        "stellarSuite.deployment.retry.useJitter": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add random jitter to retry delays to prevent thundering-herd retries."
+        },
+        "stellarSuite.deployment.retry.attemptTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 5000,
+          "description": "Per-attempt timeout in milliseconds. Timed-out attempts are retried if attempts remain."
+        },
+        "stellarSuite.notifications.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable toast notifications."
+        },
+        "stellarSuite.notifications.maxVisible": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Maximum number of visible toast notifications at once."
+        },
+        "stellarSuite.notifications.maxQueued": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Maximum number of notifications in the queue."
+        },
+        "stellarSuite.notifications.defaultDuration": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 0,
+          "maximum": 300000,
+          "description": "Default notification duration in milliseconds (0 = no auto-dismiss)."
+        },
+        "stellarSuite.notifications.position": {
+          "type": "string",
+          "enum": [
+            "top-right",
+            "top-left",
+            "bottom-right",
+            "bottom-left",
+            "top-center",
+            "bottom-center"
+          ],
+          "default": "bottom-right",
+          "description": "Position of toast notifications on screen."
+        },
+        "stellarSuite.notifications.enableAnimations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable animations for toast notifications."
+        },
+        "stellarSuite.notifications.soundEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Play sound when a notification is shown (reserved for future use)."
+        },
+        "stellarSuite.notifications.actionsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show action buttons on notifications when available."
         }
       }
     }
@@ -126,12 +545,14 @@
   "scripts": {
     "vscode:prepublish": "npm run compile && npm run docs",
     "compile": "tsc -p ./",
+    "lint": "tsc --noEmit",
+    "package": "npm run compile && vsce package",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "docs": "typedoc"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.33",
     "@types/vscode": "^1.80.0",
     "typedoc": "^0.25.0",
     "typescript": "^5.0.0"
