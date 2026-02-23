@@ -547,14 +547,18 @@
     "package": "npm run compile && vsce package",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "mocha --require ts-node/register --extensions ts 'src/test/**/*.test.ts'"
+    "test": "mocha --require ts-node/register --extensions ts 'src/test/**/*.test.ts'",
+    "coverage": "nyc npm test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.0",
     "@types/node": "^20.19.33",
+    "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^2.22.0",
     "mocha": "^10.0.0",
+    "nyc": "^17.1.0",
+    "sinon": "^21.0.1",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0",
     "vscode": "^1.1.37"
