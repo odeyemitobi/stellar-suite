@@ -1,0 +1,30 @@
+{
+    "name": "staking",
+    "displayName": "Staking Contract Template",
+    "description": "A production-ready staking contract template with asset locking, reward accrual, and time-locked unstaking support.",
+    "version": "0.1.0",
+    "category": "defi",
+    "author": "Stellar Suite",
+    "tags": [
+        "staking",
+        "rewards",
+        "defi",
+        "locking"
+    ],
+    "dependencies": {
+        "soroban-sdk": "20.0.0"
+    },
+    "functions": [
+        "initialize",
+        "stake",
+        "unstake",
+        "claim_rewards",
+        "update_reward_rate",
+        "pause",
+        "unpause"
+    ],
+    "examples": [
+        "Stake assets for 30 days to earn rewards with a fixed rate."
+    ],
+    "license": "Apache-2.0"
+}

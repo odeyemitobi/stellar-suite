@@ -12,11 +12,16 @@
     "vscode": "^1.80.0"
   },
   "categories": [
+    "Programming Languages",
+    "Testing",
     "Other"
   ],
   "keywords": [
     "stellar",
     "soroban",
+    "smart-contracts",
+    "blockchain",
+    "rust",
     "developer-tools"
   ],
   "activationEvents": [],

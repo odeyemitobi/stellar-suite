@@ -1,119 +1,66 @@
 # Stellar Suite
 
-A Visual Studio Code extension that improves the developer experience when building smart contracts on Stellar.
+[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/stellar-suite.stellar-suite?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=stellar-suite.stellar-suite)
+[![License](https://img.shields.io/github/license/0xVida/stellar-suite?style=flat-square)](LICENSE.md)
+[![Stellar](https://img.shields.io/badge/Stellar-Soroban-black?style=flat-square&logo=stellar)](https://stellar.org)
 
-Stellar Suite removes friction from contract development by bringing build, deployment, and contract interaction workflows directly into your editor. Instead of constantly switching between VS Code and the terminal, developers can deploy and manage contracts through an interactive IDE experience.
+**Stellar Suite** is the ultimate developer toolkit for building, deploying, and managing smart contracts on the Stellar network—directly from your editor.
+
+Stop context switching between your IDE and the terminal. Stellar Suite brings the power of the Stellar CLI into a streamlined, interactive VS Code experience, allowing you to focus on what matters most: **writing great code.**
+
+---
+
+## 🚀 Key Benefits
+
+- **Zero Friction**: Build and deploy contracts with a single click.
+- **Interactive UI**: Manage deployments and simulations through a dedicated sidebar.
+- **Smart Error Handling**: Don't just see errors—understand them with guided CLI feedback.
+- **Identity Management**: Integrated signing workflows (Interactive, File-based, Secure Storage).
+- **Prototyping Speed**: Rapidly simulate transactions with real-time resource profiling.
+
+---
+
+
+## ✨ Core Features
+
+### 🛠️ One-Click Build & Deployment
+Build and deploy your Soroban contracts without leaving your editor. Captures IDs, stores metadata, and handles the CLI heavy lifting for you.
+
+### 📊 Interactive Contract Sidebar
+A dedicated dashboard to view discovered contracts, build statuses, deployment history, and quick-access actions.
+
+### 🧪 Advanced Transaction Simulation
+Run transactions against the network and see formatted return values, execution resource usage, and storage diffs—all in one place.
+
+### 🔒 Integrated Signing Workflows
+Securely sign transactions using your preferred method (Interactive, Keypair files, Secure Storage, or External).
+
+### 🔍 Error Guidance & Progress Tracking
+Live-stream CLI output and get parsed, actionable feedback when things go wrong.
+
+---
 
 ### Screenshot of current working MVP
 
 ![Stellar Suite MVP Screenshot](https://raw.githubusercontent.com/0xVida/stellar-suite/refs/heads/main/assets/screenshot.png)
-*Screenshot showing the current Stellar Suite mvp*
+*Screenshot showing the current Stellar Suite MVP*
 
-## What is Stellar Suite?
+---
 
-Developing Stellar smart contracts currently relies heavily on manual CLI usage. Developers must repeatedly:
 
-- Run build commands
-- Deploy contracts through terminal commands
-- Copy contract IDs manually
-- Track deployment details themselves
-- Manually prepare invocation parameters
+## 🔌 Installation
+Search for **"Stellar Suite"** in the VS Code Extensions view (`Ctrl+Shift+X`) and click **Install**.
 
-This workflow works, but it slows development and increases the chance of human error.
+### Quick Start
+1. Open a workspace containing a Soroban contract (`Cargo.toml` with `soroban-sdk`).
+2. Open the **Stellar Suite Sidebar** from the Activity Bar.
+3. Click **Build** on your contract!
 
-Stellar Suite is designed to streamline this process by providing an interactive developer experience directly inside VS Code. The extension integrates with the official Stellar CLI while removing repetitive manual steps.
-
-### Current Features (MVP)
-
-The first release focuses on simplifying contract deployment, transaction simulation and invocation.
-
-### Enhanced CLI Error Guidance
-
-Stellar Suite parses Stellar CLI errors into structured, readable feedback:
-
-- Detects error type (network, validation, execution)
-- Extracts error codes and useful context
-- Formats detailed error output for panels/output logs
-- Provides actionable suggestions for faster recovery
-
-### One-Click Contract Build & Deployment
-
-Stellar Suite allows developers to build and deploy contracts using the official Stellar CLI without leaving VS Code.
-
-**Features:**
-
-- Run contract builds directly from the editor
-- Deploy contracts using guided prompts
-- Automatically capture deployed contract IDs
-- Store deployment metadata for later use
-- Display deployment results inside VS Code
-- Remove the need to manually parse CLI output
-
-### Automated Contract ID Management
-
-After deployment, Stellar Suite automatically:
-
-- Detects the contract ID from CLI output
-- Stores it locally within the workspace
-- Makes it available for future interactions
-
-This removes the need to manually copy and store contract addresses.
-
-### Interactive Deployment Workflow
-
-Instead of remembering CLI flags, the extension provides guided prompts that allow developers to:
-
-- Select network environments
-- Select source accounts
-- Choose compiled contract files
-- Confirm deployment configuration
-
-### Contract Sidebar
-
-The extension includes a sidebar panel that displays:
-
-- Detected contracts in the workspace
-- Build status (Built/Not Built)
-- Deployed contract IDs
-- Deployment history
-- Quick actions for build, deploy, and simulate
-
-### Real-Time CLI Output
-
-Long-running CLI operations (like contract builds) stream `stdout` and `stderr` directly into VS Code output channels so you can monitor progress live, with cancellation support and bounded buffering for large logs.
-
-## Installation
-
-### From VS Code Marketplace
-
-*(Coming soon)*
-
-### From Source
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/0xVida/stellar-suite.git
-   cd stellar-suite
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Compile the extension:
-
-   ```bash
-   npm run compile
-   ```
-
-4. Run extension locally:
-
-   - Open project in VS Code
-   - Press `Fn + F5` (Mac) or `F5` (Windows/Linux)
-   - A new Extension Development Host window will open
+### Development Setup (Build from Source)
+1. Clone the repository: `git clone https://github.com/0xVida/stellar-suite.git`
+2. Install dependencies: `npm install`
+3. Compile the extension: `npm run compile`
+4. Run locally: Press `F5` to open the Extension Development Host.
 
 ## Usage
 
