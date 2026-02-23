@@ -1,4 +1,4 @@
-import { execFile, exec } from 'child_process';
+import { execFile, exec, ExecFileOptions } from 'child_process';
 import { promisify } from 'util';
 import { formatCliError } from '../utils/errorFormatter';
 import * as os from 'os';
@@ -7,11 +7,17 @@ import * as path from 'path';
 const execFileAsync = promisify(execFile);
 const execAsync = promisify(exec);
 
+export type ExecFileFunction = (
+    file: string,
+    args: ReadonlyArray<string>,
+    options: ExecFileOptions
+) => Promise<{ stdout: string; stderr: string }>;
+
 function getEnvironmentWithPath(): NodeJS.ProcessEnv {
     const env = { ...process.env };
     const homeDir = os.homedir();
     const cargoBin = path.join(homeDir, '.cargo', 'bin');
-    
+
     const additionalPaths = [
         cargoBin,
         path.join(homeDir, '.local', 'bin'),
@@ -19,11 +25,11 @@ function getEnvironmentWithPath(): NodeJS.ProcessEnv {
         '/opt/homebrew/bin',
         '/opt/homebrew/sbin'
     ];
-    
+
     const currentPath = env.PATH || env.Path || '';
     env.PATH = [...additionalPaths, currentPath].filter(Boolean).join(path.delimiter);
     env.Path = env.PATH;
-    
+
     return env;
 }
 
@@ -40,10 +46,16 @@ export interface SimulationResult {
 export class SorobanCliService {
     private cliPath: string;
     private source: string;
+    private execFile: ExecFileFunction;
 
-    constructor(cliPath: string, source: string = 'dev') {
+    constructor(
+        cliPath: string,
+        source: string = 'dev',
+        executor?: ExecFileFunction
+    ) {
         this.cliPath = cliPath;
         this.source = source;
+        this.execFile = executor || execFileAsync;
     }
 
     async simulateTransaction(
@@ -86,8 +98,8 @@ export class SorobanCliService {
             }
 
             const env = getEnvironmentWithPath();
-            
-            const { stdout, stderr } = await execFileAsync(
+
+            const { stdout, stderr } = await this.execFile(
                 commandParts[0],
                 commandParts.slice(1),
                 {
@@ -110,25 +122,33 @@ export class SorobanCliService {
                 const output = stdout.trim();
                 try {
                     const parsed = JSON.parse(output);
+                    const resourceUsage = parsed.resource_usage || parsed.resourceUsage;
                     return {
                         success: true,
                         result: parsed.result || parsed.returnValue || parsed,
-                        resourceUsage: parsed.resource_usage || parsed.resourceUsage || parsed.cpu_instructions ? {
+                        resourceUsage: resourceUsage ? {
+                            cpuInstructions: resourceUsage.cpu_instructions || resourceUsage.cpuInstructions || parsed.cpu_instructions,
+                            memoryBytes: resourceUsage.memory_bytes || resourceUsage.memoryBytes || parsed.memory_bytes
+                        } : (parsed.cpu_instructions ? {
                             cpuInstructions: parsed.cpu_instructions,
                             memoryBytes: parsed.memory_bytes
-                        } : undefined
+                        } : undefined)
                     };
                 } catch {
                     const jsonMatch = output.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const parsed = JSON.parse(jsonMatch[0]);
+                        const resourceUsage = parsed.resource_usage || parsed.resourceUsage;
                         return {
                             success: true,
                             result: parsed.result || parsed.returnValue || parsed,
-                            resourceUsage: parsed.resource_usage || parsed.resourceUsage || parsed.cpu_instructions ? {
+                            resourceUsage: resourceUsage ? {
+                                cpuInstructions: resourceUsage.cpu_instructions || resourceUsage.cpuInstructions || parsed.cpu_instructions,
+                                memoryBytes: resourceUsage.memory_bytes || resourceUsage.memoryBytes || parsed.memory_bytes
+                            } : (parsed.cpu_instructions ? {
                                 cpuInstructions: parsed.cpu_instructions,
                                 memoryBytes: parsed.memory_bytes
-                            } : undefined
+                            } : undefined)
                         };
                     }
                     return {
@@ -144,7 +164,7 @@ export class SorobanCliService {
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            
+
             if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
                 return {
                     success: false,
@@ -162,7 +182,7 @@ export class SorobanCliService {
     async isAvailable(): Promise<boolean> {
         try {
             const env = getEnvironmentWithPath();
-            await execFileAsync(this.cliPath, ['--version'], { env: env, timeout: 5000 });
+            await this.execFile(this.cliPath, ['--version'], { env: env, timeout: 5000 });
             return true;
         } catch {
             return false;
