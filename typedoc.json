@@ -1,0 +1,18 @@
+{
+    "$schema": "https://typedoc.org/schema.json",
+    "entryPoints": [
+        "src"
+    ],
+    "entryPointStrategy": "expand",
+    "out": "docs/api",
+    "name": "Stellar Suite API Documentation",
+    "includeVersion": true,
+    "exclude": [
+        "**/*.test.ts",
+        "**/test/**",
+        "**/node_modules/**"
+    ],
+    "cleanOutputDir": true,
+    "searchInComments": true,
+    "readme": "README.md"
+}

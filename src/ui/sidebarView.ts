@@ -27,7 +27,11 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private _webView?: SidebarWebView;
     private _context: vscode.ExtensionContext;
 
-    constructor(private readonly _extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
+    constructor(
+        private readonly _extensionUri: vscode.Uri,
+        context: vscode.ExtensionContext,
+        private readonly groupService?: any // Use any for now or import ContractGroupService
+    ) {
         this._context = context;
     }
 
@@ -147,6 +151,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                 try {
                     functions = await inspector.getContractFunctions(contractId);
                 } catch (error) {
+                    // Silently fail if inspection fails
                 }
             }
 
