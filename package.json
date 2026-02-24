@@ -562,5 +562,7 @@
     "typedoc": "^0.25.0",
     "typescript": "^5.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "react-icons": "^5.5.0"
+  }
 }
