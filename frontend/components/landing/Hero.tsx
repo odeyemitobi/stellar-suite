@@ -1,10 +1,4 @@
-"use client";
-
-import { useSearch } from "@/lib/context/search-context";
-
 export function Hero() {
-  const { open } = useSearch();
-
   return (
     <section className="relative flex min-h-[90vh] flex-col items-center justify-center bg-cosmic-navy px-6 pt-14 text-center">
       {/* Subtle gradient orb */}
@@ -37,28 +31,12 @@ export function Hero() {
           >
             Install Extension
           </a>
-          <button
-            onClick={open}
+          <a
+            href="#features"
             className="inline-flex h-10 items-center gap-2 rounded-[var(--radius)] border border-border-subtle px-5 text-sm text-muted-silver transition-colors hover:border-electric-cyan/30 hover:text-stardust-white"
           >
-            <svg
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
             Explore Features
-            <kbd className="ml-1 rounded border border-border-subtle bg-cosmic-navy px-1 py-0.5 text-[10px] font-mono">
-              ⌘K
-            </kbd>
-          </button>
+          </a>
         </div>
       </div>
 
