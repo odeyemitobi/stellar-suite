@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowRight, Code2, Sparkles, TerminalSquare } from "lucide-react";
+import { ArrowRight, Sparkles, TerminalSquare } from "lucide-react";
 
 export function Hero() {
     return (
