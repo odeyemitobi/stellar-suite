@@ -14,6 +14,8 @@ export function SocialShareButtons({ title, url }: SocialShareButtonsProps) {
 
   useEffect(() => {
     if (typeof window !== "undefined" && !url) {
+      // Syncing with external system (window.location) on mount
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- valid sync with browser
       setShareUrl(window.location.href);
     }
   }, [url]);

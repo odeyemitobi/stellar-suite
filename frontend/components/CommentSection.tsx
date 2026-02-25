@@ -16,13 +16,13 @@ export function CommentSection() {
       id: 1,
       author: "Stellar Dev",
       text: "Great update! Looking forward to using the new features.",
-      date: new Date(Date.now() - 86400000).toLocaleDateString(),
+      date: "Yesterday",
     },
     {
       id: 2,
       author: "Cosmic User",
       text: "The new UI is very clean. Good job!",
-      date: new Date(Date.now() - 172800000).toLocaleDateString(),
+      date: "2 days ago",
     },
   ]);
 

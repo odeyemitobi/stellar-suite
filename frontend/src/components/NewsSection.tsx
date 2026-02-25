@@ -28,7 +28,7 @@ const NewsSection = () => {
     <section className="section-padding">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-12">
-          <p className="text-sm font-semibold font-display text-primary mb-2">● What's new</p>
+          <p className="text-sm font-semibold font-display text-primary mb-2">● What&apos;s new</p>
           <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight text-foreground">
             Making news, making impact
           </h2>

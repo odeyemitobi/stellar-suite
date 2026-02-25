@@ -50,7 +50,7 @@ export function ContactForm() {
       setStatus("success");
       setFeedback("Thank you for your message! We will get back to you soon.");
       setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (error) {
+    } catch {
       setStatus("error");
       setFeedback("Failed to send message. Please try again later.");
     }

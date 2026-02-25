@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import screenshotSimulate from "@/assets/screenshot-simulate.png";
 import screenshotDeploy from "@/assets/screenshot-deploy.png";
 import { useState } from "react";
@@ -15,7 +16,7 @@ const HeroSection = () => {
           className="text-4xl sm:text-5xl md:text-7xl font-display font-extrabold leading-[1.08] tracking-tight mb-6 animate-fade-up"
           style={{ color: "hsl(var(--hero-foreground))" }}
         >
-          Find out what's possible
+          Find out what&apos;s possible
           <br />
           when Soroban connects
         </h1>
@@ -25,7 +26,7 @@ const HeroSection = () => {
           className="text-lg md:text-xl font-body max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-up opacity-80"
           style={{ color: "hsl(var(--hero-foreground))", animationDelay: "0.1s" }}
         >
-          Whether you're building smart contracts or deploying to Stellar, Stellar Suite
+          Whether you&apos;re building smart contracts or deploying to Stellar, Stellar Suite
           makes it easier to build, deploy, and simulate — all from VS Code.
         </p>
 
@@ -71,9 +72,9 @@ const HeroSection = () => {
         </div>
 
         <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-          <img
-            src={activeShot === "simulate" ? screenshotSimulate.src : screenshotDeploy.src}
-            alt={`Stellar Suite VS Code extension — ${activeShot === "simulate" ? "transaction simulation" : "contract deployment"}`}
+          <Image
+            src={activeShot === "simulate" ? screenshotSimulate : screenshotDeploy}
+            alt={activeShot === "simulate" ? "Stellar Suite VS Code extension — transaction simulation" : "Stellar Suite VS Code extension — contract deployment"}
             className="w-full"
           />
         </div>

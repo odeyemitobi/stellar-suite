@@ -6,7 +6,7 @@ const CtaSection = () => {
           Start building in seconds
         </h2>
         <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
-          Install the extension, open a Soroban project, and you're ready to deploy. No configuration required.
+          Install the extension, open a Soroban project, and you&apos;re ready to deploy. No configuration required.
         </p>
 
         <div className="rounded-xl bg-muted border border-border px-6 py-4 font-mono text-sm text-foreground inline-block mb-10">

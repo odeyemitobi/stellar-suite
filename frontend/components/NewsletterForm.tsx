@@ -40,7 +40,7 @@ export function NewsletterForm() {
       setStatus("success");
       setMessage("Thank you for subscribing! Check your inbox for confirmation.");
       setEmail("");
-    } catch (error) {
+    } catch {
       setStatus("error");
       setMessage("Something went wrong. Please try again later.");
     }

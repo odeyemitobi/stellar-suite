@@ -15,7 +15,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5">
           <Image
-            src="/images/logo.png"
+            src="/icon.png"
             alt="Stellar Suite"
             width={24}
             height={24}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, Star, X } from "lucide-react";
+import { MessageSquare, Star } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
 export function FeedbackWidget() {
