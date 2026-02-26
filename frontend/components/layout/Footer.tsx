@@ -1,3 +1,4 @@
+// components/layout/Footer.tsx
 const FOOTER_LINKS = [
   {
     title: "Product",
@@ -10,6 +11,7 @@ const FOOTER_LINKS = [
   {
     title: "Resources",
     links: [
+      { label: "Blog", href: "/blog" },
       {
         label: "Documentation",
         href: "https://github.com/0xVida/stellar-suite#readme",

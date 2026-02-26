@@ -5,6 +5,7 @@ const NAV_LINKS = [
   { label: "Features", href: "/#features" },
   { label: "Templates", href: "/#templates" },
   { label: "Compare", href: "/#compare" },
+  { label: "Blog", href: "/blog" },
   { label: "Docs", href: "https://github.com/0xVida/stellar-suite#readme" },
 ];
 
