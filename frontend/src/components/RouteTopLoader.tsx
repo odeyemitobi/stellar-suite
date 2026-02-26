@@ -13,8 +13,10 @@ export default function RouteTopLoader() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    setVisible(true);
-    setProgress(START);
+    const startTimer = setTimeout(() => {
+      setVisible(true);
+      setProgress(START);
+    }, 0);
 
     const midTimer = setTimeout(() => setProgress(MID), 180);
     const doneTimer = setTimeout(() => setProgress(DONE), 480);
@@ -24,6 +26,7 @@ export default function RouteTopLoader() {
     }, 760);
 
     return () => {
+      clearTimeout(startTimer);
       clearTimeout(midTimer);
       clearTimeout(doneTimer);
       clearTimeout(hideTimer);

@@ -53,7 +53,6 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           Skip to content
         </a>
-<<<<<<< HEAD
         <RouteTopLoader />
         <Navbar />
         <div className="pt-16">
